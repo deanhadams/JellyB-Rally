@@ -222,6 +222,10 @@
     normal: { label: 'Normal', speed: .9,  react: .07, err: 0,  jumpChance: 1,   aim: [16, 16] },
     hard:   { label: 'Hard',   speed: 1,   react: .03, err: 0,  jumpChance: 1,   aim: [10, 34], drive: .75 },
   };
+  // Overall CPU skill across all difficulty levels (1 = original strength).
+  // Lower values make it move and react a little slower and occasionally misread a ball badly,
+  // the way a person sometimes flubs one. 0.9 = about 10% fewer returns at every level.
+  const AI_SKILL = 0.9, AI_WHIFF = 0.12;
   const cfg = { ...DEFAULTS };
   try { Object.assign(cfg, JSON.parse(localStorage.getItem('jbv-settings') || '{}')); } catch (e) {}
   function applySettings() {
@@ -337,6 +341,7 @@
     const onMySide = ball.x > W / 2;
     if (onMySide && !p.aiSide) {
       p.aiErr = (Math.random() * 2 - 1) * L.err;
+      if (Math.random() < AI_WHIFF) p.aiErr += (Math.random() < .5 ? -1 : 1) * (90 + Math.random() * 40);   // misread
       p.aiJump = Math.random() < L.jumpChance;
       p.aiAim = L.aim[0] + Math.random() * (L.aim[1] - L.aim[0]);
       p.aiDrive = Math.random() < (L.drive || 0);
@@ -344,13 +349,13 @@
     p.aiSide = onMySide;
     p.aiT -= STEP;
     if (p.aiT <= 0) {
-      p.aiT = L.react;
+      p.aiT = L.react / AI_SKILL;
       const px = predictX(GY - 100 * BS - BR);
       p.aiTarget = (px > W / 2 - 4) ? px + p.aiAim * BS + p.aiErr : 740;
       if (state === 'serve') p.aiTarget = ball.x + p.aiAim * BS;
     }
     const d = p.aiTarget - p.x;
-    let dir = Math.abs(d) < 6 ? 0 : Math.sign(d) * L.speed;
+    let dir = Math.abs(d) < 6 ? 0 : Math.sign(d) * L.speed * AI_SKILL;
     const dx = ball.x - p.x;
     if (p.aiDrive && state === 'play' && onMySide && ball.vy > 0 && dx < 0 &&
         Math.hypot(dx, ball.y - (p.y - 50 * BS)) < PR + BR + 45) dir = -1;   // lunge into the ball
