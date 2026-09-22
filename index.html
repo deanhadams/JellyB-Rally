@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Jelly Bean Volley: a 2D beach volleyball game played by wobbly jelly beans.">
+<title>Jelly Bean Volley</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chango&family=Nunito:wght@600;800&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --ground: #22122a;
+    --panel: #321c3b;
+    --cream: #fff1e0;
+    --muted: #cdb3c9;
+    --cherry: #e8344e;
+    --blueberry: #4d63e6;
+    --lemon: #ffcf3f;
+    --display: "Chango", "Arial Black", Impact, sans-serif;
+    --body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  [hidden] { display: none !important; }
+  html, body { background: var(--ground); color: var(--cream); }
+  body { font-family: var(--body); font-weight: 600; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding-inline: 16px; padding-block: 18px 28px; display: grid; gap: 14px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { font-family: var(--display); font-weight: 400; font-size: clamp(20px, 3.4vw, 30px); margin: 0; letter-spacing: .01em; line-height: 1.1; }
+  h1 .j { color: var(--cherry); } h1 .b { color: var(--lemon); } h1 .v { color: #8fa0ff; }
+  .tools { display: flex; gap: 8px; }
+  .tool { font: 800 13px var(--body); color: var(--cream); background: var(--panel); border: 1px solid #4a2d55; border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+  .tool:hover { background: #432750; }
+  .tool:focus-visible, .btn:focus-visible, .pad:focus-visible { outline: 3px solid var(--lemon); outline-offset: 2px; }
+
+  .board { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; background: var(--panel); border-radius: 16px; padding: 10px 18px; }
+  .side { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .side.right { justify-content: flex-end; }
+  .chip { width: 18px; height: 24px; border-radius: 50% 50% 46% 54% / 60% 60% 40% 40%; flex: none; box-shadow: inset -3px -4px 0 rgba(0,0,0,.2), inset 3px 3px 0 rgba(255,255,255,.35); }
+  .chip.c { background: var(--cherry); } .chip.b { background: var(--blueberry); }
+  .name { font-weight: 800; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .name small { display: block; font-weight: 600; font-size: 12px; color: var(--muted); }
+  .score { font-family: var(--display); font-size: clamp(28px, 5vw, 44px); line-height: 1; font-variant-numeric: tabular-nums; }
+  .target { font-size: 12px; color: var(--muted); text-align: center; text-transform: uppercase; letter-spacing: .12em; }
+
+  .stage { position: relative; border-radius: 20px; overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,.45); background: #7ccfe0; }
+  canvas { display: block; width: 100%; aspect-ratio: 960 / 648; max-width: 100%; touch-action: none; }
+  .overlay { position: absolute; inset: 0; display: flex; padding: 16px; background: rgba(34,18,42,.42); overflow-y: auto; }
+  .card { margin: auto; background: rgba(50,28,59,.95); border-radius: 22px; padding: clamp(16px, 3vw, 26px); max-width: 460px; width: 100%; text-align: center; display: grid; gap: 12px; }
+  .settings { display: grid; gap: 10px; text-align: left; background: rgba(0,0,0,.18); border-radius: 16px; padding: 12px 14px; }
+  .settings-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .settings-head span { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .link { font: 800 12px var(--body); color: var(--lemon); background: none; border: 0; padding: 2px 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .set { display: grid; grid-template-columns: 7.5em 1fr 3.4em; align-items: center; gap: 10px; }
+  .set label { font-size: 14px; font-weight: 800; }
+  .set output { font-size: 13px; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; color: var(--lemon); }
+  .set input[type=range] { width: 100%; accent-color: var(--lemon); min-width: 0; }
+  .set .lbl { font-size: 14px; font-weight: 800; }
+  .seg { grid-column: 2 / -1; display: flex; gap: 4px; background: rgba(0,0,0,.22); border-radius: 11px; padding: 3px; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label { flex: 1; text-align: center; font: 800 13px var(--body); padding: 6px 4px; border-radius: 8px; cursor: pointer; color: var(--muted); }
+  .seg label:hover { color: var(--cream); }
+  .seg input:checked + label { background: var(--lemon); color: #2a1330; }
+  .seg input:focus-visible + label { outline: 2px solid var(--lemon); outline-offset: 2px; }
+  .hint { font-size: 12px; color: var(--muted); margin: -4px 0 0; }
+  .arena { display: grid; gap: 14px; }
+  /* full screen: scoreboard on top, court scaled to fit the rest, touch pads at the bottom */
+  .arena.is-fs { display: flex; flex-direction: column; gap: 10px; width: 100%; height: 100%;
+    background: var(--ground); padding: max(10px, env(safe-area-inset-top, 0px)) 16px max(10px, env(safe-area-inset-bottom, 0px)); }
+  .arena.is-fs .stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
+    background: none; box-shadow: none; border-radius: 0; overflow: hidden; }
+  .arena.is-fs canvas { border-radius: 14px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+  .arena.is-fs .overlay { position: absolute; inset: 0; padding: 16px; background: rgba(34,18,42,.42); overflow-y: auto; }
+  .arena.is-fs .board { padding: 6px 16px; }
+  .arena.is-fs .score { font-size: clamp(22px, 4vh, 40px); }
+  .fs-tools { display: none; gap: 6px; justify-content: center; margin-top: 4px; }
+  .fs-tools .tool { padding: 4px 10px; font-size: 12px; letter-spacing: 0; text-transform: none; }
+  .arena.is-fs .fs-tools { display: flex; }
+  /* full screen on touch devices: the pads float over the court's bottom corners */
+  .arena.is-fs { position: relative; }
+  .arena.is-fs .touch { position: absolute; left: 22px; right: 22px; bottom: max(14px, env(safe-area-inset-bottom, 0px)); pointer-events: none; }
+  .arena.is-fs .touch .pad { pointer-events: auto; background: rgba(50,28,59,.55); border-color: rgba(255,241,224,.25); }
+  .arena.is-fs .touch .pad.jump { background: rgba(232,52,78,.7); }
+  .arena.is-fs.menu-open .touch { display: none; }
+  @media (max-height: 500px) {
+    .arena.is-fs { gap: 6px; }
+    .arena.is-fs .board { padding: 3px 12px; }
+    .arena.is-fs .name small, .arena.is-fs .target br { display: none; }
+    .arena.is-fs .target { display: flex; align-items: center; gap: 8px; }
+    .arena.is-fs .fs-tools { margin-top: 0; }
+  }
+  .arena:fullscreen::backdrop { background: #22122a; }
+  @media (max-width: 640px) {
+    /* phones: the court is too short to hold the menu, so the menu sits under it instead */
+    .stage { overflow: visible; background: none; box-shadow: none; border-radius: 0; }
+    canvas { border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+    .overlay { position: static; padding: 12px 0 0; background: none; overflow: visible; }
+  }
+  @media (max-width: 420px) { .set { grid-template-columns: 1fr 3.4em; } .set input[type=range], .seg { grid-column: 1 / -1; grid-row: 2; } }
+  .card h2 { font-family: var(--display); font-weight: 400; margin: 0; font-size: clamp(20px, 3.6vw, 30px); text-wrap: balance; }
+  .card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+  .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .btn { font: 800 15px var(--body); border: 0; border-radius: 14px; padding: 11px 18px; cursor: pointer; color: #2a1330; background: var(--lemon); box-shadow: 0 4px 0 #c99a14; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #c99a14; }
+  .btn.alt { background: var(--cream); box-shadow: 0 4px 0 #bfa99a; }
+
+  .touch { display: none; justify-content: space-between; gap: 12px; user-select: none; -webkit-user-select: none; }
+  .touch .grp { display: flex; gap: 10px; }
+  .pad { font: 800 18px var(--body); color: var(--cream); background: var(--panel); border: 1px solid #4a2d55; border-radius: 18px; width: 76px; height: 64px; touch-action: none; }
+  .pad.jump { width: 120px; background: var(--cherry); border-color: transparent; }
+  .pad.on { filter: brightness(1.35); }
+  @media (pointer: coarse) { .touch { display: flex; } .keys { display: none; } }
+
+  .keys { display: flex; gap: 22px; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
+  kbd { font: 800 12px var(--body); color: var(--cream); background: var(--panel); border: 1px solid #4a2d55; border-bottom-width: 3px; border-radius: 6px; padding: 1px 7px; }
+  @media (max-width: 520px) { .name small { display: none; } .board { padding: 8px 12px; } }
+</style>
+<style>
+  /* base reset (the hosted version got this from the artifact page wrapper) */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; font-size: 14px; }
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <h1><span class="j">Jelly</span> <span class="b">Bean</span> <span class="v">Volley</span></h1>
+    <div class="tools">
+      <button class="tool" id="pauseBtn" type="button">Pause</button>
+      <button class="tool" id="muteBtn" type="button">Sound on</button>
+      <button class="tool" id="fsBtn" type="button">Full screen</button>
+    </div>
+  </header>
+
+  <div class="arena menu-open" id="arena">
+  <section class="board" aria-live="polite">
+    <div class="side">
+      <span class="chip c"></span>
+      <span class="name">Cherry<small id="p1label">You</small></span>
+      <span class="score" id="s1">0</span>
+    </div>
+    <div class="target">First to<br><strong id="goal">7</strong>
+      <div class="fs-tools"><button class="tool" id="fsPause" type="button">Pause</button><button class="tool" id="fsExit" type="button">Exit</button></div>
+    </div>
+    <div class="side right">
+      <span class="score" id="s2">0</span>
+      <span class="name" style="text-align:right">Blueberry<small id="p2label">CPU</small></span>
+      <span class="chip b"></span>
+    </div>
+  </section>
+
+  <div class="stage">
+    <canvas id="game" width="960" height="648" aria-label="Volleyball court with two jelly bean players"></canvas>
+    <div class="overlay" id="overlay">
+      <div class="card" id="card">
+        <h2 id="ovTitle">Bounce it over the net</h2>
+        <p id="ovText">Score a point when the ball lands on your opponent's sand.</p>
+        <div class="settings" id="settings">
+          <div class="settings-head"><span>Match settings</span><button class="link" id="resetCfg" type="button">Reset to defaults</button></div>
+          <div class="set"><label for="cfgBallSize">Ball size</label><input type="range" id="cfgBallSize" min="70" max="200" step="10"><output id="outBallSize" for="cfgBallSize"></output></div>
+          <div class="set"><label for="cfgBallSpeed">Ball speed</label><input type="range" id="cfgBallSpeed" min="50" max="150" step="5"><output id="outBallSpeed" for="cfgBallSpeed"></output></div>
+          <div class="set"><label for="cfgBeanSize">Jelly bean size</label><input type="range" id="cfgBeanSize" min="70" max="150" step="10"><output id="outBeanSize" for="cfgBeanSize"></output></div>
+          <div class="set"><span class="lbl" id="lblGoal">First to</span><div class="seg" id="segGoal" role="radiogroup" aria-labelledby="lblGoal"></div></div>
+          <div class="set"><span class="lbl" id="lblDiff">Computer</span><div class="seg" id="segDiff" role="radiogroup" aria-labelledby="lblDiff"></div></div>
+          <p class="hint">Computer difficulty is used in 1 player games.</p>
+          <div class="set"><span class="lbl" id="lblPow">Power-ups</span><div class="seg" id="segPow" role="radiogroup" aria-labelledby="lblPow"></div></div>
+          <p class="hint">Knock the ball through a bubble to grab its power for 5 seconds.</p>
+        </div>
+        <div class="row" id="ovButtons">
+          <button class="btn" id="cpuBtn" type="button">1 player vs CPU</button>
+          <button class="btn alt" id="pvpBtn" type="button">2 players</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="touch" id="touch">
+    <div class="grp">
+      <button class="pad" data-k="left" type="button" aria-label="Move left">◀</button>
+      <button class="pad" data-k="right" type="button" aria-label="Move right">▶</button>
+    </div>
+    <button class="pad jump" data-k="jump" type="button">Jump</button>
+  </div>
+  </div>
+
+  <div class="keys">
+    <span><strong style="color:var(--cherry)">Cherry</strong> &nbsp;<kbd>A</kbd> <kbd>D</kbd> move · <kbd>W</kbd> jump</span>
+    <span><strong style="color:#8fa0ff">Blueberry</strong> &nbsp;<kbd>←</kbd> <kbd>→</kbd> move · <kbd>↑</kbd> jump</span>
+    <span><kbd>P</kbd> pause</span>
+    <span><kbd>F</kbd> full screen</span>
+  </div>
+</main>
+
+<script>
+(() => {
+  // ---------- world constants ----------
+  const W = 960, H = 648, GY = 578;             // H is 20% taller than 540; the extra room is added above the court
+  const NL = 474, NR = 486, NT = 426;           // net rectangle
+  const G_P = 2400, JUMP = 960, SPEED = 430;    // player physics
+  const G_B = 950, MAXV = 1150;                 // ball physics
+  const BASE_BR = 17;                            // ball radius at 100% size
+  let BR = BASE_BR;
+  const BASE_PR = 44;                            // bean collision radius at 100% size
+  let PR = BASE_PR, BS = 1;                      // BS = bean size multiplier
+  const STEP = 1 / 240;
+  const CEIL = 0, CEIL_E = 0.85;                 // top edge of the frame is a solid ceiling
+  const SERVE_Y = 258;
+  let BALL_TIME = 0.9;                          // ball speed multiplier (1 = original speed)
+
+  // ---------- match settings ----------
+  const DEFAULTS = { ballSize: 100, ballSpeed: 90, beanSize: 100, goal: 7, difficulty: 'normal', powerups: 'on' };   // sizes/speed in %
+  const GOAL_OPTIONS = [3, 5, 7, 11, 15, 21];
+  // speed: share of full bean speed · react: seconds between re-reading the ball
+  // err: max px it misjudges the landing spot by · jumpChance: how often it goes up for a hit
+  // aim: range of offsets it stands at behind the ball, which changes where its return goes
+  // drive: chance it lunges toward the net at contact, which sends back a flatter, faster ball
+  const AI_LEVELS = {
+    easy:   { label: 'Easy',   speed: .6,  react: .2,  err: 60, jumpChance: .25, aim: [16, 16] },
+    normal: { label: 'Normal', speed: .9,  react: .07, err: 0,  jumpChance: 1,   aim: [16, 16] },
+    hard:   { label: 'Hard',   speed: 1,   react: .03, err: 0,  jumpChance: 1,   aim: [10, 34], drive: .75 },
+  };
+  const cfg = { ...DEFAULTS };
+  try { Object.assign(cfg, JSON.parse(localStorage.getItem('jbv-settings') || '{}')); } catch (e) {}
+  function applySettings() {
+    BR = BASE_BR * cfg.ballSize / 100;
+    BALL_TIME = cfg.ballSpeed / 100;
+    BS = cfg.beanSize / 100; PR = BASE_PR * BS;
+    if (!GOAL_OPTIONS.includes(cfg.goal)) cfg.goal = DEFAULTS.goal;
+    if (!AI_LEVELS[cfg.difficulty]) cfg.difficulty = DEFAULTS.difficulty;
+    if (cfg.powerups !== 'on' && cfg.powerups !== 'off') cfg.powerups = DEFAULTS.powerups;
+    document.getElementById('goal').textContent = cfg.goal;
+  }
+  applySettings();
+
+  // ---------- power-ups ----------
+  // target 'self' helps whoever last touched the ball; 'opponent' is used on the other bean
+  const POWERS = {
+    mega:   { name: 'Mega Bean',  color: '#ff8c1a', target: 'self' },       // bean grows 40%
+    turbo:  { name: 'Turbo',      color: '#15b8a6', target: 'self' },       // moves 50% faster
+    spring: { name: 'Super Jump', color: '#6cc12a', target: 'self' },       // jumps higher
+    smash:  { name: 'Power Hit',  color: '#f5b400', target: 'self' },       // hits leave 30% faster
+    syrup:  { name: 'Syrup',      color: '#b86a2c', target: 'self' },       // ball slows down on your side
+    shrink: { name: 'Shrink Ray', color: '#a45cf0', target: 'opponent' },   // opponent shrinks
+  };
+  const POWER_TIME = 5, ITEM_R = 24, ITEM_LIFE = 9;
+  let item = null, spawnT = 5, lastTouch = -1, announce = null;
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  let scale = 1, bg = null;
+
+  const FLAVOURS = [
+    { name: 'Cherry', base: '#e8344e', light: '#ff8a8f', dark: '#9c1330', speck: 'rgba(120,10,30,.35)', cheek: '#ffb3b8' },
+    { name: 'Blueberry', base: '#4d63e6', light: '#9eb0ff', dark: '#26308f', speck: 'rgba(230,236,255,.45)', cheek: '#c8b8ff' },
+  ];
+
+  function makeSpecks(seed) {
+    const out = []; let s = seed;
+    const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 14; i++) out.push({ x: rnd() * 1.6 - .8, y: rnd() * 1.6 - .8, r: 1.2 + rnd() * 2 });
+    return out;
+  }
+
+  function makePlayer(side) {
+    return {
+      side, f: FLAVOURS[side], x: side ? 760 : 200, y: GY, vx: 0, vy: 0, onGround: true,
+      s: 0, sv: 0, lean: 0, blinkT: 2 + Math.random() * 3, blink: 0, specks: makeSpecks(side ? 91 : 17),
+      aiT: 0, aiTarget: 760, aiSide: false, aiErr: 0, aiJump: true, aiAim: 16,
+      sz: BS, fx: {},                          // current size multiplier and active power timers
+    };
+  }
+  const players = [makePlayer(0), makePlayer(1)];
+  const ball = { x: 200, y: 258, vx: 0, vy: 0, rot: 0, power: false, trail: [] };
+  const particles = [];
+  const score = [0, 0];
+
+  let mode = 'cpu';          // 'cpu' | 'pvp'
+  let state = 'menu';        // menu | serve | play | point | over
+  let timer = 0, server = 0, lastScorer = -1, paused = false;
+
+  // ---------- input ----------
+  const keys = new Set();
+  const touch = { left: false, right: false, jump: false };
+  addEventListener('keydown', e => {
+    if (e.target.matches?.('input[type=range], input[type=radio]') && /^Arrow/.test(e.code)) return;   // let settings use arrow keys
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(e.code)) e.preventDefault();
+    if (e.code === 'KeyP' || (e.code === 'Escape' && !fsElement())) { togglePause(); return; }
+    if (e.code === 'KeyF' && !e.repeat && fsSupported) { toggleFullscreen(); return; }
+    keys.add(e.code); ensureAudio();
+  });
+  addEventListener('keyup', e => keys.delete(e.code));
+  addEventListener('blur', () => { keys.clear(); if (state === 'play' || state === 'serve') setPaused(true); });
+
+  document.querySelectorAll('.pad').forEach(b => {
+    const k = b.dataset.k;
+    const on = e => { e.preventDefault(); touch[k] = true; b.classList.add('on'); ensureAudio(); };
+    const off = e => { e.preventDefault(); touch[k] = false; b.classList.remove('on'); };
+    b.addEventListener('pointerdown', on);
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => b.addEventListener(ev, off));
+  });
+
+  function inputFor(p) {
+    if (p.side === 0) {
+      const solo = mode === 'cpu';
+      const L = keys.has('KeyA') || (solo && keys.has('ArrowLeft')) || touch.left;
+      const R = keys.has('KeyD') || (solo && keys.has('ArrowRight')) || touch.right;
+      const J = keys.has('KeyW') || (solo && (keys.has('ArrowUp') || keys.has('Space'))) || touch.jump;
+      return { dir: (R ? 1 : 0) - (L ? 1 : 0), jump: J };
+    }
+    if (mode === 'pvp') {
+      return { dir: (keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0), jump: keys.has('ArrowUp') };
+    }
+    return aiInput(p);
+  }
+
+  // ---------- CPU ----------
+  function predictX(targetY) {
+    let x = ball.x, y = ball.y, vx = ball.vx, vy = ball.vy;
+    const dt = 1 / 120;
+    for (let i = 0; i < 360; i++) {
+      vy += G_B * dt; x += vx * dt; y += vy * dt;
+      if (x < BR) { x = BR; vx = Math.abs(vx); }
+      if (x > W - BR) { x = W - BR; vx = -Math.abs(vx); }
+      if (y < CEIL + BR) { y = CEIL + BR; vy = Math.abs(vy) * CEIL_E; }
+      if (vy > 0 && y >= targetY) return x;
+    }
+    return x;
+  }
+  function aiInput(p) {
+    if (state === 'menu' || state === 'over') return { dir: 0, jump: false };
+    const BS = p.sz, PR = BASE_PR * p.sz;   // this bean's current size (power-ups can change it)
+    const L = AI_LEVELS[cfg.difficulty];
+    // each time the ball comes to its side, the CPU decides how well it reads it this time
+    const onMySide = ball.x > W / 2;
+    if (onMySide && !p.aiSide) {
+      p.aiErr = (Math.random() * 2 - 1) * L.err;
+      p.aiJump = Math.random() < L.jumpChance;
+      p.aiAim = L.aim[0] + Math.random() * (L.aim[1] - L.aim[0]);
+      p.aiDrive = Math.random() < (L.drive || 0);
+    }
+    p.aiSide = onMySide;
+    p.aiT -= STEP;
+    if (p.aiT <= 0) {
+      p.aiT = L.react;
+      const px = predictX(GY - 100 * BS - BR);
+      p.aiTarget = (px > W / 2 - 4) ? px + p.aiAim * BS + p.aiErr : 740;
+      if (state === 'serve') p.aiTarget = ball.x + p.aiAim * BS;
+    }
+    const d = p.aiTarget - p.x;
+    let dir = Math.abs(d) < 6 ? 0 : Math.sign(d) * L.speed;
+    const dx = ball.x - p.x;
+    if (p.aiDrive && state === 'play' && onMySide && ball.vy > 0 && dx < 0 &&
+        Math.hypot(dx, ball.y - (p.y - 50 * BS)) < PR + BR + 45) dir = -1;   // lunge into the ball
+    const jump = p.aiJump && state === 'play' && ball.x > W / 2 && Math.abs(dx) < PR + BR - 6 &&
+      ball.y > p.y - 100 * BS - 170 && ball.y < p.y - 100 * BS - 25 && ball.vy > -150;
+    return { dir, jump };
+  }
+
+  // ---------- audio ----------
+  let actx = null, muted = false;
+  function ensureAudio() {
+    try { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (e) {}
+  }
+  function tone(f1, f2, dur, type = 'sine', vol = .14, delay = 0) {
+    if (!actx || muted) return;
+    const t = actx.currentTime + delay, o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.setValueAtTime(f1, t); o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur + .02);
+  }
+  const sfx = {
+    hit: () => tone(210 + Math.random() * 40, 560, .2, 'sine', .16),
+    jump: () => tone(300, 460, .1, 'triangle', .05),
+    land: () => tone(170, 80, .12, 'sine', .08),
+    net: () => tone(520, 380, .08, 'square', .04),
+    power: () => { tone(440, 880, .14, 'triangle', .1); tone(660, 1320, .2, 'triangle', .08, .09); },
+    smash: () => { tone(160, 720, .16, 'sawtooth', .07); tone(240, 520, .2, 'sine', .14); },
+    spawn: () => tone(700, 980, .09, 'sine', .04),
+    point: () => { tone(523, 523, .12, 'triangle', .1); tone(659, 659, .12, 'triangle', .1, .1); tone(784, 784, .2, 'triangle', .1, .2); },
+  };
+
+  // ---------- game flow ----------
+  function startMatch(m) {
+    mode = m; score[0] = score[1] = 0; server = 0; lastScorer = -1;
+    document.getElementById('p1label').textContent = m === 'cpu' ? 'You' : 'Player 1';
+    document.getElementById('p2label').textContent = m === 'cpu' ? 'CPU' : 'Player 2';
+    clearPowers(); spawnT = 4 + Math.random() * 3;
+    updateBoard(); hideOverlay(); ensureAudio(); resetServe();
+  }
+  function clearPowers() { item = null; announce = null; players.forEach(p => { p.fx = {}; }); }
+  function resetServe() {
+    players[0].x = 200; players[1].x = 760;
+    players.forEach(p => { p.y = GY; p.vx = p.vy = 0; p.onGround = true; });
+    ball.x = server ? 760 : 200; ball.y = SERVE_Y; ball.vx = 0; ball.vy = 0;
+    players[1].aiSide = false; lastTouch = -1; ball.power = false; ball.trail.length = 0;
+    state = 'serve'; timer = 0.7;
+  }
+  function scorePoint(winner) {
+    score[winner]++; lastScorer = winner; server = winner;
+    if (item) { item = null; spawnT = Math.max(spawnT, 3); }
+    updateBoard(); sfx.point();
+    state = 'point'; timer = 1.3;
+  }
+  function updateBoard() {
+    document.getElementById('s1').textContent = score[0];
+    document.getElementById('s2').textContent = score[1];
+  }
+
+  const overlay = document.getElementById('overlay');
+  function showOverlay(title, text, buttons, withSettings = false) {
+    document.getElementById('settings').hidden = !withSettings;
+    document.getElementById('ovTitle').textContent = title;
+    document.getElementById('ovText').textContent = text;
+    const row = document.getElementById('ovButtons'); row.innerHTML = '';
+    buttons.forEach(([label, fn, alt]) => {
+      const b = document.createElement('button'); b.type = 'button';
+      b.className = 'btn' + (alt ? ' alt' : ''); b.textContent = label; b.onclick = fn; row.appendChild(b);
+    });
+    overlay.hidden = false; document.getElementById('arena').classList.add('menu-open');
+    const first = row.querySelector('button'); if (first) first.focus({ preventScroll: true });
+  }
+  function hideOverlay() { overlay.hidden = true; document.getElementById('arena').classList.remove('menu-open'); canvas.focus?.(); }
+  document.getElementById('cpuBtn').onclick = () => startMatch('cpu');
+  document.getElementById('pvpBtn').onclick = () => startMatch('pvp');
+
+  function setPaused(v) {
+    if (state === 'menu' || state === 'over') return;
+    paused = v;
+    document.getElementById('pauseBtn').textContent = document.getElementById('fsPause').textContent = paused ? 'Resume' : 'Pause';
+    if (paused) showOverlay('Paused', `Cherry ${score[0]} – ${score[1]} Blueberry`, [['Resume', () => setPaused(false)], ['Quit to menu', toMenu, true]]);
+    else hideOverlay();
+  }
+  function togglePause() { setPaused(!paused); }
+  function toMenu() {
+    paused = false; state = 'menu'; score[0] = score[1] = 0; updateBoard(); clearPowers();
+    document.getElementById('pauseBtn').textContent = document.getElementById('fsPause').textContent = 'Pause';
+    resetServe(); state = 'menu';
+    showOverlay('Bounce it over the net', "Score a point when the ball lands on your opponent's sand.",
+      [['1 player vs CPU', () => startMatch('cpu')], ['2 players', () => startMatch('pvp'), true]], true);
+  }
+  const SLIDERS = [['ballSize', 'cfgBallSize', 'outBallSize'], ['ballSpeed', 'cfgBallSpeed', 'outBallSpeed'], ['beanSize', 'cfgBeanSize', 'outBeanSize']];
+  function syncSliders() {
+    SLIDERS.forEach(([key, id, out]) => {
+      document.getElementById(id).value = cfg[key];
+      document.getElementById(out).textContent = cfg[key] + '%';
+    });
+  }
+  SLIDERS.forEach(([key, id, out]) => {
+    document.getElementById(id).addEventListener('input', e => {
+      cfg[key] = +e.target.value; document.getElementById(out).textContent = cfg[key] + '%';
+      applySettings(); saveSettings();
+    });
+  });
+  function buildSeg(containerId, name, options, key) {
+    const box = document.getElementById(containerId);
+    options.forEach(([value, label]) => {
+      const id = `${name}-${value}`;
+      const input = document.createElement('input');
+      input.type = 'radio'; input.name = name; input.id = id; input.value = value;
+      input.addEventListener('change', () => {
+        cfg[key] = typeof DEFAULTS[key] === 'number' ? +value : value;
+        applySettings(); saveSettings();
+      });
+      const lab = document.createElement('label'); lab.htmlFor = id; lab.textContent = label;
+      box.append(input, lab);
+    });
+  }
+  buildSeg('segGoal', 'goal', GOAL_OPTIONS.map(n => [n, String(n)]), 'goal');
+  buildSeg('segPow', 'powerups', [['on', 'On'], ['off', 'Off']], 'powerups');
+  buildSeg('segDiff', 'difficulty', Object.entries(AI_LEVELS).map(([k, v]) => [k, v.label]), 'difficulty');
+  function syncSegs() {
+    document.getElementById(`goal-${cfg.goal}`).checked = true;
+    document.getElementById(`difficulty-${cfg.difficulty}`).checked = true;
+    document.getElementById(`powerups-${cfg.powerups}`).checked = true;
+  }
+  function saveSettings() { try { localStorage.setItem('jbv-settings', JSON.stringify(cfg)); } catch (e) {} }
+  document.getElementById('resetCfg').onclick = () => { Object.assign(cfg, DEFAULTS); applySettings(); saveSettings(); syncSliders(); syncSegs(); };
+  syncSliders(); syncSegs();
+
+  // ---------- full screen ----------
+  const arena = document.getElementById('arena'), fsBtn = document.getElementById('fsBtn');
+  const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+  const fsSupported = !!(arena.requestFullscreen || arena.webkitRequestFullscreen);
+  if (!fsSupported) fsBtn.hidden = true;   // e.g. iPhone Safari only allows full screen video
+  async function toggleFullscreen() {
+    try {
+      if (fsElement()) await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      else {
+        await (arena.requestFullscreen || arena.webkitRequestFullscreen).call(arena, { navigationUI: 'hide' });
+        try { await screen.orientation?.lock?.('landscape'); } catch (e) {}   // phones: turn sideways if allowed
+      }
+    } catch (e) {
+      fsBtn.textContent = 'Full screen unavailable'; setTimeout(syncFsButton, 2000);
+    }
+  }
+  function fitCanvas() {
+    // in full screen, make the court as large as possible while keeping its shape
+    if (!arena.classList.contains('is-fs')) { canvas.style.width = ''; return; }
+    const stage = canvas.parentElement;
+    const w = Math.min(stage.clientWidth, stage.clientHeight * W / H);
+    canvas.style.width = Math.floor(w) + 'px';
+  }
+  function syncFsButton() { fsBtn.textContent = fsElement() ? 'Exit full screen' : 'Full screen'; }
+  function onFsChange() {
+    arena.classList.toggle('is-fs', fsElement() === arena);
+    syncFsButton(); fitCanvas();
+  }
+  document.addEventListener('fullscreenchange', onFsChange);
+  document.addEventListener('webkitfullscreenchange', onFsChange);
+  addEventListener('resize', fitCanvas);
+  fsBtn.onclick = toggleFullscreen;
+  document.getElementById('fsExit').onclick = toggleFullscreen;
+  document.getElementById('fsPause').onclick = () => togglePause();
+
+  document.getElementById('pauseBtn').onclick = togglePause;
+  document.getElementById('muteBtn').onclick = e => { muted = !muted; e.currentTarget.textContent = muted ? 'Sound off' : 'Sound on'; ensureAudio(); };
+  document.addEventListener('visibilitychange', () => { if (document.hidden && (state === 'play' || state === 'serve')) setPaused(true); });
+
+  // ---------- physics ----------
+  function puff(x, y, n, col) {
+    for (let i = 0; i < n; i++) particles.push({
+      x, y, vx: (Math.random() - .5) * 260, vy: -Math.random() * 220 - 40,
+      life: .5 + Math.random() * .35, t: 0, r: 2 + Math.random() * 3.5, col,
+    });
+  }
+
+  function updatePlayer(p, dt) {
+    // size eases toward its target so Mega Bean / Shrink Ray grow and shrink smoothly
+    const targetSz = BS * (p.fx.mega ? 1.4 : 1) * (p.fx.shrink ? 0.65 : 1);
+    p.sz += (targetSz - p.sz) * Math.min(1, dt * 8);
+    const inp = inputFor(p);
+    p.vx = inp.dir * SPEED * (p.fx.turbo ? 1.5 : 1);
+    p.x += p.vx * dt;
+    const m = 40 * p.sz;
+    const minX = p.side ? NR + m : m, maxX = p.side ? W - m : NL - m;
+    p.x = Math.max(minX, Math.min(maxX, p.x));
+    if (inp.jump && p.onGround && state !== 'menu' && state !== 'over') {
+      p.vy = -JUMP * (p.fx.spring ? 1.22 : 1); p.onGround = false; p.sv += 7; sfx.jump();
+    }
+    if (!p.onGround) {
+      p.vy += G_P * dt; p.y += p.vy * dt;
+      if (p.y >= GY) {
+        p.sv -= Math.min(10, p.vy * 0.009); p.y = GY; p.vy = 0; p.onGround = true;
+        puff(p.x, GY, 6, '#e9bd7c'); sfx.land();
+      }
+    }
+    // jelly wobble spring
+    const acc = -320 * p.s - 9 * p.sv;
+    p.sv += acc * dt; p.s += p.sv * dt;
+    p.s = Math.max(-.32, Math.min(.32, p.s));
+    // lean + blinking
+    const targetLean = (p.vx / SPEED) * 0.13;
+    p.lean += (targetLean - p.lean) * Math.min(1, dt * 12);
+    p.blinkT -= dt;
+    if (p.blinkT <= 0) { p.blink = .12; p.blinkT = 2 + Math.random() * 4; }
+    if (p.blink > 0) p.blink -= dt;
+  }
+
+  function collideBallPlayer(p) {
+    const BS = p.sz, PR = BASE_PR * p.sz;
+    const hh = 50 * BS * (1 + p.s);
+    const cx = p.x, cy = p.y - hh;
+    const dx = ball.x - cx, dy = ball.y - cy, dist = Math.hypot(dx, dy);
+    if (dist >= PR + BR || dist === 0) return;
+    let nx = dx / dist, ny = dy / dist;
+    // A dead-centre hit on top of the head would bounce the ball straight up forever.
+    // Tilt it slightly toward the net so a juggled ball always drifts over.
+    if (ny < 0 && Math.abs(nx) < 0.15) { nx = (p.side ? -1 : 1) * 0.15; ny = -Math.sqrt(1 - nx * nx); }
+    ball.x = cx + nx * (PR + BR); ball.y = cy + ny * (PR + BR);
+    const rvx = ball.vx - p.vx, rvy = ball.vy - p.vy;
+    const vn = rvx * nx + rvy * ny;
+    if (vn < 0) {
+      const e = 0.85;
+      ball.vx = p.vx * 0.75 + rvx - (1 + e) * vn * nx;
+      ball.vy = p.vy * 0.75 + rvy - (1 + e) * vn * ny;
+      const out = ball.vx * nx + ball.vy * ny;
+      if (out < 560) { ball.vx += nx * (560 - out); ball.vy += ny * (560 - out); }
+      ball.power = !!p.fx.smash;
+      if (ball.power) { ball.vx *= 1.3; ball.vy *= 1.3; sfx.smash(); } else sfx.hit();
+      p.sv -= 4; lastTouch = p.side;
+    }
+  }
+
+  const CAP_R = 8;   // rounded knob on top of the net post
+  function collideBallNet() {
+    let nx, ny, px, py;
+    if (ball.y < NT) {
+      // Top of the net is a round knob, and a ball can never come to rest on it:
+      // the contact normal is always tilted at least a little to one side, so it rolls off.
+      const dx = ball.x - W / 2, dy = ball.y - NT, dist = Math.hypot(dx, dy);
+      if (dist >= BR + CAP_R) return;
+      nx = dist ? dx / dist : 0; ny = dist ? dy / dist : -1;
+      if (Math.abs(nx) < 0.25) {
+        const side = dx > 0.01 ? 1 : dx < -0.01 ? -1 : (Math.random() < .5 ? -1 : 1);
+        nx = side * 0.25; ny = -Math.sqrt(1 - nx * nx);
+      }
+      px = W / 2 + nx * CAP_R; py = NT + ny * CAP_R;
+    } else {
+      const cx = Math.max(NL, Math.min(NR, ball.x)), cy = Math.max(NT, Math.min(GY, ball.y));
+      const dx = ball.x - cx, dy = ball.y - cy, dist = Math.hypot(dx, dy);
+      if (dist >= BR) return;
+      if (dist === 0) { nx = ball.x < W / 2 ? -1 : 1; ny = 0; }
+      else { nx = dx / dist; ny = dy / dist; }
+      px = cx; py = cy;
+    }
+    ball.x = px + nx * BR; ball.y = py + ny * BR;
+    const vn = ball.vx * nx + ball.vy * ny;
+    if (vn < 0) {
+      ball.vx -= 1.65 * vn * nx; ball.vy -= 1.65 * vn * ny;
+      if (Math.abs(vn) > 120) sfx.net();
+    }
+  }
+
+  // Side walls and ceiling: the ball always stays inside the frame.
+  function confineBall() {
+    if (ball.x < BR) { ball.x = BR; ball.vx = Math.abs(ball.vx) * .9; }
+    if (ball.x > W - BR) { ball.x = W - BR; ball.vx = -Math.abs(ball.vx) * .9; }
+    if (ball.y < CEIL + BR) {
+      if (ball.vy < -200) { sfx.net(); puff(ball.x, CEIL + 2, 5, 'rgba(255,255,255,.8)'); }
+      ball.y = CEIL + BR; ball.vy = Math.abs(ball.vy) * CEIL_E;
+    }
+  }
+
+  function spawnItem() {
+    const keys = Object.keys(POWERS), type = keys[Math.floor(Math.random() * keys.length)];
+    const right = Math.random() < .5;
+    const x = right ? NR + 70 + Math.random() * (W - NR - 140) : 70 + Math.random() * (NL - 140);
+    const y = 110 + Math.random() * (GY - 370);          // above head height: you have to hit the ball up through it
+    item = { type, x, y, age: 0 }; sfx.spawn();
+  }
+  function grantPower(side, type) {
+    const P = POWERS[type], who = P.target === 'opponent' ? players[1 - side] : players[side];
+    who.fx[type] = POWER_TIME;
+    announce = { text: `${FLAVOURS[side].name}: ${P.name}!`, color: P.color, t: 1.8 };
+    for (let i = 0; i < 22; i++) {
+      const a = Math.random() * Math.PI * 2, v = 120 + Math.random() * 220;
+      particles.push({ x: item.x, y: item.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, life: .6 + Math.random() * .3, t: 0, r: 2.5 + Math.random() * 3, col: P.color });
+    }
+    sfx.power(); item = null; spawnT = 5 + Math.random() * 5;
+  }
+
+  function update(dt) {
+    players.forEach(p => updatePlayer(p, dt));
+    if (announce && (announce.t -= dt) <= 0) announce = null;
+    if (state === 'play' || state === 'serve') {
+      players.forEach(p => { for (const k in p.fx) if ((p.fx[k] -= dt) <= 0) delete p.fx[k]; });
+    }
+    if (state === 'play' && cfg.powerups === 'on') {
+      if (item) {
+        item.age += dt;
+        if (item.age > ITEM_LIFE) { item = null; spawnT = 3 + Math.random() * 4; }
+      } else if ((spawnT -= dt) <= 0) spawnItem();
+    }
+
+    if (state === 'serve') {
+      timer -= dt;
+      ball.y = SERVE_Y + Math.sin(timer * 10) * 3;
+      if (timer <= 0) state = 'play';
+    } else if (state === 'play') {
+      // Syrup: the ball moves at 55% speed while it is on the Syrup owner's half
+      const syrup = (players[0].fx.syrup && ball.x < W / 2) || (players[1].fx.syrup && ball.x > W / 2);
+      const bdt = dt * BALL_TIME * (syrup ? .55 : 1);
+      ball.vy += G_B * bdt;
+      ball.x += ball.vx * bdt; ball.y += ball.vy * bdt;
+      ball.rot += ball.vx * bdt / BR;
+      confineBall();
+      collideBallNet();
+      players.forEach(collideBallPlayer);
+      confineBall();   // a bean near a wall or under the ceiling must not shove the ball out of the frame
+      const sp = Math.hypot(ball.vx, ball.vy), cap = ball.power ? MAXV * 1.3 : MAXV;
+      if (sp > cap) { ball.vx *= cap / sp; ball.vy *= cap / sp; }
+      if (item && lastTouch >= 0 && Math.hypot(ball.x - item.x, ball.y - item.y) < BR + ITEM_R) grantPower(lastTouch, item.type);
+      if (ball.power) { ball.trail.push([ball.x, ball.y]); if (ball.trail.length > 14) ball.trail.shift(); }
+      else if (ball.trail.length) ball.trail.shift();
+      if (ball.y + BR >= GY) {
+        ball.y = GY - BR;
+        puff(ball.x, GY, 16, '#f3cf94');
+        scorePoint(ball.x < W / 2 ? 1 : 0);
+      }
+    } else if (state === 'point') {
+      timer -= dt;
+      if (timer <= 0) {
+        if (score[0] >= cfg.goal || score[1] >= cfg.goal) {
+          state = 'over';
+          const w = score[0] > score[1] ? 0 : 1;
+          const title = mode === 'cpu' ? (w === 0 ? 'Cherry wins!' : 'Blueberry wins this one') : `${FLAVOURS[w].name} wins!`;
+          showOverlay(title, `Final score ${score[0]} – ${score[1]}`,
+            [['Play again', () => startMatch(mode)], ['Change settings', toMenu, true]]);
+        } else resetServe();
+      }
+    }
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const q = particles[i]; q.t += dt;
+      if (q.t >= q.life) { particles.splice(i, 1); continue; }
+      q.vy += 700 * dt; q.x += q.vx * dt; q.y = Math.min(GY + 2, q.y + q.vy * dt);
+    }
+  }
+
+  // ---------- drawing ----------
+  function buildBackground() {
+    bg = document.createElement('canvas');
+    bg.width = canvas.width; bg.height = canvas.height;
+    const b = bg.getContext('2d'); b.scale(scale, scale);
+    const horizon = GY - 118;
+    let g = b.createLinearGradient(0, 0, 0, horizon);
+    g.addColorStop(0, '#6cc6e2'); g.addColorStop(.6, '#b5e2e4'); g.addColorStop(1, '#ffe2b3');
+    b.fillStyle = g; b.fillRect(0, 0, W, horizon);
+    // sun
+    const sg = b.createRadialGradient(150, 170, 10, 150, 170, 120);
+    sg.addColorStop(0, 'rgba(255,246,200,1)'); sg.addColorStop(.35, 'rgba(255,236,170,.9)'); sg.addColorStop(1, 'rgba(255,236,170,0)');
+    b.fillStyle = sg; b.beginPath(); b.arc(150, 170, 120, 0, Math.PI * 2); b.fill();
+    b.fillStyle = '#fff6d2'; b.beginPath(); b.arc(150, 170, 42, 0, Math.PI * 2); b.fill();
+    // soft clouds
+    b.fillStyle = 'rgba(255,255,255,.75)';
+    [[640, 140, 1], [820, 210, .7], [380, 90, .6]].forEach(([x, y, s]) => {
+      b.beginPath(); b.ellipse(x, y, 60 * s, 18 * s, 0, 0, Math.PI * 2);
+      b.ellipse(x + 30 * s, y - 12 * s, 38 * s, 20 * s, 0, 0, Math.PI * 2);
+      b.ellipse(x - 34 * s, y - 6 * s, 30 * s, 15 * s, 0, 0, Math.PI * 2); b.fill();
+    });
+    // sea
+    g = b.createLinearGradient(0, horizon, 0, horizon + 46);
+    g.addColorStop(0, '#2f9fbf'); g.addColorStop(1, '#63c9c9');
+    b.fillStyle = g; b.fillRect(0, horizon, W, 46);
+    b.strokeStyle = 'rgba(255,255,255,.55)'; b.lineWidth = 2; b.lineCap = 'round';
+    for (let i = 0; i < 16; i++) {
+      const x = (i * 131) % W, y = horizon + 10 + (i * 7) % 30;
+      b.beginPath(); b.moveTo(x, y); b.quadraticCurveTo(x + 12, y - 4, x + 24, y); b.stroke();
+    }
+    // foam edge
+    b.fillStyle = '#e9f7f2';
+    b.beginPath(); b.moveTo(0, horizon + 46);
+    for (let x = 0; x <= W; x += 24) b.quadraticCurveTo(x + 12, horizon + 40 + (x % 48 ? 4 : -2), x + 24, horizon + 46);
+    b.lineTo(W, horizon + 52); b.lineTo(0, horizon + 52); b.fill();
+    // sand
+    g = b.createLinearGradient(0, horizon + 50, 0, H);
+    g.addColorStop(0, '#f6d7a2'); g.addColorStop(.5, '#f1c98b'); g.addColorStop(1, '#e2b06e');
+    b.fillStyle = g; b.fillRect(0, horizon + 50, W, H - horizon - 50);
+    let s = 7;
+    const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 520; i++) {
+      const x = rnd() * W, y = horizon + 54 + rnd() * (H - horizon - 54);
+      b.fillStyle = rnd() > .5 ? 'rgba(160,110,50,.22)' : 'rgba(255,245,220,.5)';
+      b.fillRect(x, y, 1.6, 1.6);
+    }
+    // court line
+    b.strokeStyle = 'rgba(255,255,255,.7)'; b.lineWidth = 3; b.setLineDash([14, 10]);
+    b.beginPath(); b.moveTo(10, GY + 3); b.lineTo(W - 10, GY + 3); b.stroke(); b.setLineDash([]);
+    // net post + mesh strip
+    b.fillStyle = 'rgba(80,40,30,.25)';
+    b.beginPath(); b.ellipse(W / 2, GY + 6, 20, 5, 0, 0, Math.PI * 2); b.fill();
+    b.fillStyle = '#7a4a36'; b.fillRect(NL, NT, NR - NL, GY - NT + 4);
+    b.fillStyle = 'rgba(255,255,255,.18)'; b.fillRect(NL + 2, NT, 3, GY - NT);
+    b.strokeStyle = 'rgba(40,20,30,.55)'; b.lineWidth = 1;
+    for (let y = NT + 14; y < NT + 90; y += 8) { b.beginPath(); b.moveTo(NL - 5, y); b.lineTo(NR + 5, y); b.stroke(); }
+    for (let x = NL - 5; x <= NR + 5; x += 6) { b.beginPath(); b.moveTo(x, NT + 14); b.lineTo(x, NT + 90); b.stroke(); }
+    b.fillStyle = '#fff6e6'; b.fillRect(NL - 6, NT + 8, NR - NL + 12, 7);
+    b.fillStyle = '#ffcf3f'; b.beginPath(); b.arc(W / 2, NT, 8, 0, Math.PI * 2); b.fill();
+    b.strokeStyle = '#c99a14'; b.lineWidth = 2; b.stroke();
+  }
+
+  function beanPath(hw, hh) {
+    ctx.beginPath();
+    ctx.moveTo(0, -hh);
+    ctx.bezierCurveTo(hw * 1.02, -hh, hw * 1.12, -hh * .2, hw * .92, hh * .38);
+    ctx.bezierCurveTo(hw * .72, hh * 1.02, -hw * .62, hh * 1.06, -hw * .96, hh * .44);
+    ctx.bezierCurveTo(-hw * 1.08, hh * .18, -hw * .66, hh * .06, -hw * .7, -hh * .22);
+    ctx.bezierCurveTo(-hw * .8, -hh * .82, -hw * .52, -hh, 0, -hh);
+    ctx.closePath();
+  }
+
+  function drawShadow(x, height, w) {
+    const k = Math.max(.25, 1 - height / 360);
+    ctx.fillStyle = `rgba(90,50,30,${.28 * k})`;
+    ctx.beginPath(); ctx.ellipse(x, GY + 4, w * k, 6 * k, 0, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function drawBean(p) {
+    const BS = p.sz;
+    const f = p.f, sy = 1 + p.s, sx = 1 - p.s * .55;
+    const hw = 38 * sx, hh = 50 * sy, cx = p.x, cy = p.y - hh * BS;
+    drawShadow(p.x, GY - p.y, 38 * BS);
+
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(p.lean); ctx.scale(BS, BS);   // bean drawn at 100% then scaled
+    ctx.save();
+    if (p.side === 1) ctx.scale(-1, 1);
+    beanPath(hw, hh);
+    const g = ctx.createRadialGradient(-hw * .35, -hh * .45, 4, 0, 0, hh * 1.25);
+    g.addColorStop(0, f.light); g.addColorStop(.45, f.base); g.addColorStop(1, f.dark);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = f.speck;
+    p.specks.forEach(s => { ctx.beginPath(); ctx.arc(s.x * hw, s.y * hh, s.r, 0, Math.PI * 2); ctx.fill(); });
+    ctx.restore();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = f.dark; ctx.stroke();
+    // gloss
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.beginPath(); ctx.ellipse(hw * .38, -hh * .56, hw * .26, hh * .12, .55, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(hw * .66, -hh * .3, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // face (unmirrored, looks at ball)
+    const ex = ball.x - cx, ey = ball.y - cy, el = Math.hypot(ex, ey) || 1;
+    const lx = ex / el * 3.5, ly = ey / el * 3.5;
+    const faceX = p.side ? -4 : 4;
+    ctx.fillStyle = f.cheek; ctx.globalAlpha = .5;
+    ctx.beginPath(); ctx.ellipse(faceX - 21, -hh * .02, 7, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(faceX + 21, -hh * .02, 7, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+    [-12, 12].forEach(o => {
+      const x = faceX + o, y = -hh * .24;
+      if (p.blink > 0) {
+        ctx.strokeStyle = '#2a1330'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(x - 7, y); ctx.lineTo(x + 7, y); ctx.stroke();
+      } else {
+        ctx.fillStyle = '#fffaf2'; ctx.beginPath(); ctx.ellipse(x, y, 8.5, 10.5 * Math.min(1.15, sy), 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#2a1330'; ctx.beginPath(); ctx.arc(x + lx, y + ly, 4.6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x + lx + 1.6, y + ly - 1.8, 1.4, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+    ctx.strokeStyle = '#2a1330'; ctx.fillStyle = '#5a1030'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    if (!p.onGround) { ctx.beginPath(); ctx.ellipse(faceX, hh * .16, 4.5, 6, 0, 0, Math.PI * 2); ctx.fill(); }
+    else { ctx.beginPath(); ctx.arc(faceX, hh * .06, 8, .2 * Math.PI, .8 * Math.PI); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  function drawBall() {
+    drawShadow(ball.x, GY - ball.y, 18);
+    ctx.save(); ctx.translate(ball.x, ball.y); ctx.rotate(ball.rot);
+    ctx.beginPath(); ctx.arc(0, 0, BR, 0, Math.PI * 2);
+    const g = ctx.createRadialGradient(-BR * .3, -BR * .35, 2, 0, 0, BR);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#ecdcc4');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.save(); ctx.clip();
+    for (let k = 0; k < 3; k++) {
+      ctx.rotate(Math.PI * 2 / 3);
+      ctx.fillStyle = k === 0 ? '#ffcf3f' : k === 1 ? '#4d9be6' : 'rgba(0,0,0,0)';
+      ctx.beginPath(); ctx.arc(BR * 1.25, 0, BR * .95, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(60,40,40,.55)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(BR * 1.25, 0, BR * .95, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(60,40,40,.6)';
+    ctx.beginPath(); ctx.arc(0, 0, BR, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // simple vector icon for each power, drawn around (0,0) at roughly 20px across
+  function drawPowerIcon(type, color) {
+    ctx.save(); ctx.fillStyle = color; ctx.strokeStyle = color; ctx.lineWidth = 3.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    if (type === 'mega') { ctx.moveTo(-8, 0); ctx.lineTo(8, 0); ctx.moveTo(0, -8); ctx.lineTo(0, 8); ctx.stroke(); }
+    else if (type === 'shrink') { ctx.moveTo(-9, -5); ctx.lineTo(-3, 0); ctx.lineTo(-9, 5); ctx.moveTo(9, -5); ctx.lineTo(3, 0); ctx.lineTo(9, 5); ctx.stroke(); }
+    else if (type === 'turbo') { ctx.moveTo(-8, -6); ctx.lineTo(-2, 0); ctx.lineTo(-8, 6); ctx.moveTo(1, -6); ctx.lineTo(7, 0); ctx.lineTo(1, 6); ctx.stroke(); }
+    else if (type === 'spring') { ctx.moveTo(-5, 8); ctx.lineTo(5, 5); ctx.lineTo(-5, 2); ctx.lineTo(5, -1); ctx.lineTo(-5, -4); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-5, -6); ctx.lineTo(0, -11); ctx.lineTo(5, -6); ctx.stroke(); }
+    else if (type === 'smash') { ctx.moveTo(2, -11); ctx.lineTo(-7, 2); ctx.lineTo(0, 2); ctx.lineTo(-2, 11); ctx.lineTo(7, -2); ctx.lineTo(0, -2); ctx.closePath(); ctx.fill(); }
+    else if (type === 'syrup') { ctx.moveTo(0, -10); ctx.bezierCurveTo(4, -4, 8, 0, 8, 4); ctx.arc(0, 4, 8, 0, Math.PI); ctx.bezierCurveTo(-8, 0, -4, -4, 0, -10); ctx.fill(); }
+    ctx.restore();
+  }
+
+  function drawItem() {
+    const P = POWERS[item.type];
+    const pop = Math.min(1, item.age / .3), bob = Math.sin(item.age * 3) * 6;
+    const blinkOut = item.age > ITEM_LIFE - 2 && Math.floor(item.age * 8) % 2 === 0;
+    ctx.save(); ctx.translate(item.x, item.y + bob); ctx.scale(pop, pop);
+    ctx.globalAlpha = blinkOut ? .35 : 1;
+    const ring = (item.age * 1.2) % 1;
+    ctx.strokeStyle = P.color; ctx.lineWidth = 3; ctx.globalAlpha *= (1 - ring) * .7;
+    ctx.beginPath(); ctx.arc(0, 0, ITEM_R + ring * 16, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = blinkOut ? .35 : 1;
+    const g = ctx.createRadialGradient(-8, -9, 2, 0, 0, ITEM_R);
+    g.addColorStop(0, 'rgba(255,255,255,.95)'); g.addColorStop(.7, 'rgba(255,255,255,.75)'); g.addColorStop(1, P.color);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, ITEM_R, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = P.color; ctx.stroke();
+    drawPowerIcon(item.type, P.color);
+    ctx.font = '800 12px Nunito, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(42,19,48,.85)'; ctx.lineJoin = 'round';
+    const label = P.name.toUpperCase();
+    ctx.strokeText(label, 0, ITEM_R + 6); ctx.fillStyle = '#fff'; ctx.fillText(label, 0, ITEM_R + 6);
+    ctx.restore();
+  }
+
+  // small badges above a bean's head: one per active power, with a ring that runs down over 5 seconds
+  function drawBadges(p) {
+    const list = Object.keys(p.fx); if (!list.length) return;
+    const y = p.y - 100 * p.sz - 26, gap = 30, x0 = p.x - (list.length - 1) * gap / 2;
+    list.forEach((k, i) => {
+      const P = POWERS[k], left = p.fx[k] / POWER_TIME, x = x0 + i * gap;
+      const flash = p.fx[k] < 1.2 && Math.floor(p.fx[k] * 8) % 2 === 0;
+      ctx.save(); ctx.translate(x, y); ctx.globalAlpha = flash ? .45 : 1;
+      ctx.fillStyle = 'rgba(255,250,240,.92)'; ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(42,19,48,.25)'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.strokeStyle = P.color; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(0, 0, 13, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left); ctx.stroke();
+      ctx.scale(.62, .62); drawPowerIcon(k, P.color);
+      ctx.restore();
+    });
+  }
+
+  function banner(text, color) {
+    ctx.save();
+    ctx.font = '400 40px Chango, "Arial Black", Impact, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round'; ctx.lineWidth = 8; ctx.strokeStyle = '#2a1330';
+    ctx.strokeText(text, W / 2, 300); ctx.fillStyle = color; ctx.fillText(text, W / 2, 300);
+    ctx.restore();
+  }
+
+  function render() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(bg, 0, 0);
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    particles.forEach(q => {
+      ctx.globalAlpha = 1 - q.t / q.life; ctx.fillStyle = q.col;
+      ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    // Syrup: tint the owner's half so it's clear where the ball goes slow
+    players.forEach(p => { if (p.fx.syrup) {
+      ctx.fillStyle = 'rgba(184,106,44,.13)'; ctx.fillRect(p.side ? W / 2 : 0, 0, W / 2, GY);
+    } });
+    if (item) drawItem();
+    players.forEach(drawBean);
+    ball.trail.forEach(([x, y], i) => {
+      ctx.globalAlpha = (i + 1) / ball.trail.length * .45; ctx.fillStyle = POWERS.smash.color;
+      ctx.beginPath(); ctx.arc(x, y, BR * (.5 + .5 * (i + 1) / ball.trail.length), 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    drawBall();
+    players.forEach(drawBadges);
+    if (announce) {
+      ctx.save(); ctx.globalAlpha = Math.min(1, announce.t / .4);
+      ctx.font = '400 28px Chango, "Arial Black", Impact, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineJoin = 'round'; ctx.lineWidth = 7; ctx.strokeStyle = '#2a1330';
+      ctx.strokeText(announce.text, W / 2, 64); ctx.fillStyle = announce.color; ctx.fillText(announce.text, W / 2, 64);
+      ctx.restore();
+    }
+    if (state === 'point' && lastScorer >= 0) banner(`Point ${FLAVOURS[lastScorer].name}!`, lastScorer ? '#9eb0ff' : '#ff8a8f');
+    if (state === 'serve') {
+      ctx.save(); ctx.font = '800 16px Nunito, system-ui, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(42,19,48,.75)'; ctx.fillText(`${FLAVOURS[server].name} serves`, ball.x, SERVE_Y - 32); ctx.restore();
+    }
+  }
+
+  function resize() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = Math.round(canvas.clientWidth * dpr) || W;
+    canvas.width = w; canvas.height = Math.round(w * H / W);
+    scale = canvas.width / W;
+    buildBackground();
+  }
+  new ResizeObserver(resize).observe(canvas);
+  resize();
+
+  // ---------- loop ----------
+  let last = performance.now(), acc = 0;
+  function frame(now) {
+    let dt = Math.min(.05, (now - last) / 1000); last = now;
+    if (!paused) {
+      acc += dt;
+      while (acc >= STEP) { update(STEP); acc -= STEP; }
+    }
+    render();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  document.fonts?.ready.then(() => render());
+})();
+</script>
+</body>
+</html>
