@@ -119,6 +119,16 @@
   .btn { font: 800 15px var(--body); border: 0; border-radius: 14px; padding: 11px 18px; cursor: pointer; color: #2a1330; background: var(--lemon); box-shadow: 0 4px 0 #c99a14; }
   .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #c99a14; }
   .btn.alt { background: var(--cream); box-shadow: 0 4px 0 #bfa99a; }
+  /* full screen button on the menu card */
+  .menu-fs { justify-self: center; display: inline-flex; align-items: center; gap: 8px; font: 800 14px var(--body); color: var(--cream);
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,241,224,.25); border-radius: 999px; padding: 8px 16px; cursor: pointer; }
+  .menu-fs:hover { background: rgba(255,255,255,.14); }
+  .menu-fs:focus-visible { outline: 3px solid var(--lemon); outline-offset: 2px; }
+  .menu-fs-icon { width: 14px; height: 14px; position: relative; }
+  .menu-fs-icon::before, .menu-fs-icon::after { content: ''; position: absolute; width: 5px; height: 5px; border: 2px solid currentColor; }
+  .menu-fs-icon::before { top: 0; left: 0; border-right: 0; border-bottom: 0; box-shadow: 9px 9px 0 -2px transparent; }
+  .menu-fs-icon::after { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+  .yt .menu-fs { display: none !important; }
 
   canvas, .pad-area { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   @media (pointer: coarse) { .keys { display: none; } }
@@ -201,6 +211,7 @@
           <button class="btn" id="cpuBtn" type="button" data-i18n="menu.onePlayer">1 player vs CPU</button>
           <button class="btn alt" id="pvpBtn" type="button" data-i18n="menu.twoPlayers">2 players</button>
         </div>
+        <button class="menu-fs" id="menuFs" type="button"><span class="menu-fs-icon" aria-hidden="true"></span><span id="menuFsLabel" data-i18n="btn.fullscreen">Full screen</span></button>
       </div>
     </div>
   </div>
@@ -976,6 +987,7 @@
   function syncFsButton() {
     fsBtn.textContent = t(fsElement() ? 'btn.exitFullscreen' : 'btn.fullscreen');
     document.getElementById('fsExit').textContent = t(fsElement() ? 'btn.exit' : 'btn.fullscreen');
+    document.getElementById('menuFsLabel').textContent = t(fsElement() ? 'btn.exitFullscreen' : 'btn.fullscreen');
   }
   function onFsChange() {
     arena.classList.toggle('is-fs', fsElement() === arena);
@@ -1025,6 +1037,9 @@
   fsBtn.onclick = toggleFullscreen;
   document.getElementById('fsExit').onclick = toggleFullscreen;
   if (!fsSupported) document.getElementById('fsExit').hidden = true;
+  const menuFs = document.getElementById('menuFs');
+  if (!fsSupported) menuFs.hidden = true;
+  menuFs.onclick = toggleFullscreen;
   document.getElementById('fsPause').onclick = () => togglePause();
 
   document.getElementById('pauseBtn').onclick = togglePause;
