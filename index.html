@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Jelly Bean Volley: a 2D beach volleyball game played by wobbly jelly beans.">
-<title>Jelly Bean Volley</title>
+<meta name="description" content="JellyB-Rally: a 2D beach volleyball game played by wobbly jelly beans.">
+<title>JellyB-Rally</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chango&family=Nunito:wght@600;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chango&family=Nunito:wght@600;800;900&display=swap">
 <style>
   :root {
     color-scheme: dark;
@@ -19,20 +19,25 @@
     --blueberry: #4d63e6;
     --lemon: #ffcf3f;
     --display: "Chango", "Arial Black", Impact, sans-serif;
-    --body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --body: "Nunito", system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "Nirmala UI", "Noto Sans Devanagari", sans-serif;
   }
   [hidden] { display: none !important; }
   html, body { background: var(--ground); color: var(--cream); }
   body { font-family: var(--body); font-weight: 600; }
-  .wrap { max-width: 1080px; margin: 0 auto; padding-inline: 16px; padding-block: 18px 28px; display: grid; gap: 14px; }
+  /* The whole game fills exactly one screen: header, scoreboard and court share the height and
+     nothing scrolls. The court scales to the space left and is centred (bars at the sides or top). */
+  .wrap { box-sizing: border-box; max-width: 1400px; margin: 0 auto; padding-inline: 16px; padding-block: 12px;
+    height: 100vh; height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+  header, .keys { flex: none; }
 
   header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  h1 { font-family: var(--display); font-weight: 400; font-size: clamp(20px, 3.4vw, 30px); margin: 0; letter-spacing: .01em; line-height: 1.1; }
+  h1 { font-family: "Chango", "Arial Black", Impact, sans-serif; font-weight: 400; font-size: clamp(20px, 3.4vw, 30px); margin: 0; letter-spacing: .01em; line-height: 1.1; }
   h1 .j { color: var(--cherry); } h1 .b { color: var(--lemon); } h1 .v { color: #8fa0ff; }
   .tools { display: flex; gap: 8px; }
   .tool { font: 800 13px var(--body); color: var(--cream); background: var(--panel); border: 1px solid #4a2d55; border-radius: 999px; padding: 7px 14px; cursor: pointer; }
   .tool:hover { background: #432750; }
-  .tool:focus-visible, .btn:focus-visible, .pad:focus-visible { outline: 3px solid var(--lemon); outline-offset: 2px; }
+  .tool:focus-visible, .btn:focus-visible { outline: 3px solid var(--lemon); outline-offset: 2px; }
 
   .board { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; background: var(--panel); border-radius: 16px; padding: 10px 18px; }
   .side { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -41,18 +46,25 @@
   .chip.c { background: var(--cherry); } .chip.b { background: var(--blueberry); }
   .name { font-weight: 800; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .name small { display: block; font-weight: 600; font-size: 12px; color: var(--muted); }
-  .score { font-family: var(--display); font-size: clamp(28px, 5vw, 44px); line-height: 1; font-variant-numeric: tabular-nums; }
+  /* score digits use heavy Nunito: Chango's round "0" reads like a pill at scoreboard sizes */
+  .score { font-family: var(--body); font-weight: 900; font-size: clamp(30px, 5vw, 46px); line-height: 1; font-variant-numeric: tabular-nums; }
   .target { font-size: 12px; color: var(--muted); text-align: center; text-transform: uppercase; letter-spacing: .12em; }
 
-  .stage { position: relative; border-radius: 20px; overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,.45); background: #7ccfe0; }
-  canvas { display: block; width: 100%; aspect-ratio: 960 / 648; max-width: 100%; touch-action: none; }
-  .overlay { position: absolute; inset: 0; display: flex; padding: 16px; background: rgba(34,18,42,.42); overflow-y: auto; }
+  .arena { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; position: relative; }
+  .board { flex: none; }
+  .stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+  canvas { display: block; width: 100%; aspect-ratio: 960 / 648; max-width: 100%; touch-action: none;
+    border-radius: 18px; box-shadow: 0 14px 40px rgba(0,0,0,.45); background: #7ccfe0; }
+  /* menus cover the scoreboard and court and scroll inside themselves when they're taller than the screen */
+  .overlay { position: absolute; inset: 0; z-index: 5; display: flex; padding: 16px; border-radius: 18px;
+    background: rgba(34,18,42,.55); overflow-y: auto; overscroll-behavior: contain; }
   .card { margin: auto; background: rgba(50,28,59,.95); border-radius: 22px; padding: clamp(16px, 3vw, 26px); max-width: 460px; width: 100%; text-align: center; display: grid; gap: 12px; }
   .settings { display: grid; gap: 10px; text-align: left; background: rgba(0,0,0,.18); border-radius: 16px; padding: 12px 14px; }
   .settings-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .settings-head span { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
   .link { font: 800 12px var(--body); color: var(--lemon); background: none; border: 0; padding: 2px 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
-  .set { display: grid; grid-template-columns: 7.5em 1fr 3.4em; align-items: center; gap: 10px; }
+  .set { display: grid; grid-template-columns: 9.5em 1fr 3.4em; align-items: center; gap: 10px; }
+  .set label, .set .lbl { overflow-wrap: anywhere; hyphens: auto; }
   .set label { font-size: 14px; font-weight: 800; }
   .set output { font-size: 13px; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; color: var(--lemon); }
   .set input[type=range] { width: 100%; accent-color: var(--lemon); min-width: 0; }
@@ -64,40 +76,43 @@
   .seg input:checked + label { background: var(--lemon); color: #2a1330; }
   .seg input:focus-visible + label { outline: 2px solid var(--lemon); outline-offset: 2px; }
   .hint { font-size: 12px; color: var(--muted); margin: -4px 0 0; }
-  .arena { display: grid; gap: 14px; }
-  /* full screen: scoreboard on top, court scaled to fit the rest, touch pads at the bottom */
-  .arena.is-fs { display: flex; flex-direction: column; gap: 10px; width: 100%; height: 100%;
-    background: var(--ground); padding: max(10px, env(safe-area-inset-top, 0px)) 16px max(10px, env(safe-area-inset-bottom, 0px)); }
-  .arena.is-fs .stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
-    background: none; box-shadow: none; border-radius: 0; overflow: hidden; }
-  .arena.is-fs canvas { border-radius: 14px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
-  .arena.is-fs .overlay { position: absolute; inset: 0; padding: 16px; background: rgba(34,18,42,.42); overflow-y: auto; }
-  .arena.is-fs .board { padding: 6px 16px; }
-  .arena.is-fs .score { font-size: clamp(22px, 4vh, 40px); }
+  .card .keys-hint { display: none; font-size: 12px; }
+  /* full screen: the same layout, filling the display */
+  .arena.is-fs { width: 100%; height: 100%; background: var(--ground);
+    padding: max(10px, env(safe-area-inset-top, 0px)) 16px max(10px, env(safe-area-inset-bottom, 0px)); }
+  .arena:fullscreen::backdrop { background: #22122a; }
+  /* small buttons in the middle of the scoreboard: shown in full screen, inside YouTube, and on short screens */
   .fs-tools { display: none; gap: 6px; justify-content: center; margin-top: 4px; }
   .fs-tools .tool { padding: 4px 10px; font-size: 12px; letter-spacing: 0; text-transform: none; }
-  .arena.is-fs .fs-tools { display: flex; }
-  /* full screen on touch devices: the pads float over the court's bottom corners */
-  .arena.is-fs { position: relative; }
-  .arena.is-fs .touch { position: absolute; left: 22px; right: 22px; bottom: max(14px, env(safe-area-inset-bottom, 0px)); pointer-events: none; }
-  .arena.is-fs .touch .pad { pointer-events: auto; background: rgba(50,28,59,.55); border-color: rgba(255,241,224,.25); }
-  .arena.is-fs .touch .pad.jump { background: rgba(232,52,78,.7); }
-  .arena.is-fs.menu-open .touch { display: none; }
-  @media (max-height: 500px) {
-    .arena.is-fs { gap: 6px; }
-    .arena.is-fs .board { padding: 3px 12px; }
-    .arena.is-fs .name small, .arena.is-fs .target br { display: none; }
-    .arena.is-fs .target { display: flex; align-items: center; gap: 8px; }
-    .arena.is-fs .fs-tools { margin-top: 0; }
+  .arena.is-fs .fs-tools, .yt .fs-tools { display: flex; }
+  .arena.is-fs .fs-tools #fsMute { display: none; }
+  /* Inside YouTube Playables: YouTube supplies full screen, mute and the title, so ours are hidden. */
+  .yt header, .yt #fsExit, .yt #fsMute, .yt #keyFs { display: none !important; }
+  .card.loading > * { display: none !important; }
+  .card.loading::before { content: attr(data-loading); font-family: var(--display); font-size: 24px; }
+  /* short, wide screens (a phone on its side, a 16:9 laptop, ultra-wide): drop the header and hint row,
+     and float a slim scoreboard over the top of the sky so the court gets nearly the full height */
+  @media (max-height: 520px) and (min-aspect-ratio: 11/10), (max-height: 760px) and (min-aspect-ratio: 3/2) {
+    .wrap > header, .wrap > .keys { display: none; }
+    .wrap { padding-block: 6px; }
+    .arena { gap: 0; }
+    .board { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 3;
+      width: min(640px, calc(var(--court-w, 100%) - 16px)); padding: 3px 12px; gap: 8px; background: rgba(50,28,59,.85); border-radius: 12px; }
+    .name small, .target br { display: none; }
+    .target { display: flex; align-items: center; gap: 8px; }
+    .score { font-size: 24px; }
+    .chip { width: 14px; height: 19px; }
+    .fs-tools { display: flex; margin-top: 0; }
+    .card .keys-hint { display: block; }
   }
-  .arena:fullscreen::backdrop { background: #22122a; }
-  @media (max-width: 640px) {
-    /* phones: the court is too short to hold the menu, so the menu sits under it instead */
-    .stage { overflow: visible; background: none; box-shadow: none; border-radius: 0; }
-    canvas { border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
-    .overlay { position: static; padding: 12px 0 0; background: none; overflow: visible; }
-  }
+  @media (max-height: 520px) and (min-aspect-ratio: 11/10) and (max-width: 900px) { .board .name { display: none; } }
+  .touch-used .card .keys-hint { display: none !important; }
+  @media (pointer: coarse) { .card .keys-hint { display: none !important; } }
   @media (max-width: 420px) { .set { grid-template-columns: 1fr 3.4em; } .set input[type=range], .seg { grid-column: 1 / -1; grid-row: 2; } }
+  [data-display="plain"] { --display: var(--body); }
+  /* letter-spacing and capitals are a Latin-script style; they break up Devanagari and add nothing to CJK */
+  [data-display="plain"] .target, [data-display="plain"] .settings-head span { letter-spacing: 0; text-transform: none; }
+  [data-display="plain"] .card h2, [data-display="plain"] .card.loading::before { font-weight: 900; }
   .card h2 { font-family: var(--display); font-weight: 400; margin: 0; font-size: clamp(20px, 3.6vw, 30px); text-wrap: balance; }
   .card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
   .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
@@ -105,19 +120,31 @@
   .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #c99a14; }
   .btn.alt { background: var(--cream); box-shadow: 0 4px 0 #bfa99a; }
 
-  .touch { display: none; justify-content: space-between; gap: 12px; user-select: none; -webkit-user-select: none; }
-  .touch .grp { display: flex; gap: 10px; }
-  .pad { font: 800 18px var(--body); color: var(--cream); background: var(--panel); border: 1px solid #4a2d55; border-radius: 18px; width: 76px; height: 64px; touch-action: none; }
-  .pad.jump { width: 120px; background: var(--cherry); border-color: transparent; }
-  .pad.on { filter: brightness(1.35); }
-  @media (pointer: coarse) { .touch { display: flex; } .keys { display: none; } }
+  canvas, .pad-area { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  @media (pointer: coarse) { .keys { display: none; } }
+  .touch-used .keys { display: none; }
+
+  /* ---- upright layout: court on top, a control strip below it ---- */
+  .pad-area { display: none; }
+  .portrait .stage { flex: none; }
+  .portrait .pad-area { display: flex; flex: 1; min-height: 150px; flex-direction: column; justify-content: center; gap: 14px;
+    background: var(--panel); border-radius: 18px; padding-block: 14px; touch-action: none; cursor: pointer; }
+  .portrait .arena.menu-open .pad-area { visibility: hidden; }
+  .rail { position: relative; height: 64px; border-radius: 16px; margin-inline: 0;
+    background: linear-gradient(90deg, rgba(232,52,78,.2) 0 50%, rgba(77,99,230,.2) 50% 100%); }
+  .rail.cpu { background: linear-gradient(90deg, rgba(232,52,78,.22) 0 50%, rgba(255,255,255,.04) 50% 100%); }
+  .rail .net-mark { position: absolute; left: 50%; top: 8px; bottom: 8px; width: 3px; margin-left: -1.5px; border-radius: 2px; background: rgba(255,241,224,.35); }
+  .knob { position: absolute; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50% 50% 46% 54% / 58% 58% 42% 42%;
+    box-shadow: inset -4px -5px 0 rgba(0,0,0,.2), inset 4px 4px 0 rgba(255,255,255,.3); transition: transform .12s; }
+  .knob.c { background: var(--cherry); } .knob.b { background: var(--blueberry); }
+  .knob.idle { opacity: .45; } .knob.active { transform: scale(1.18); }
+  .pad-hint { margin: 0; text-align: center; font-size: 13px; font-weight: 800; color: var(--muted); padding-inline: 8px; }
 
   .keys { display: flex; gap: 22px; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
   kbd { font: 800 12px var(--body); color: var(--cream); background: var(--panel); border: 1px solid #4a2d55; border-bottom-width: 3px; border-radius: 6px; padding: 1px 7px; }
   @media (max-width: 520px) { .name small { display: none; } .board { padding: 8px 12px; } }
 </style>
 <style>
-  /* base reset (the hosted version got this from the artifact page wrapper) */
   *, *::before, *::after { box-sizing: border-box; }
   html, body { height: 100%; }
   body { margin: 0; font-size: 14px; }
@@ -127,11 +154,11 @@
 <body>
 <main class="wrap">
   <header>
-    <h1><span class="j">Jelly</span> <span class="b">Bean</span> <span class="v">Volley</span></h1>
+    <h1 aria-label="JellyB-Rally"><span class="j" data-i18n="title.w1">Jelly</span><span class="b" data-i18n="title.w2">B</span><span class="v" data-i18n="title.w3">-Rally</span></h1>
     <div class="tools">
-      <button class="tool" id="pauseBtn" type="button">Pause</button>
-      <button class="tool" id="muteBtn" type="button">Sound on</button>
-      <button class="tool" id="fsBtn" type="button">Full screen</button>
+      <button class="tool" id="pauseBtn" type="button" data-i18n="btn.pause">Pause</button>
+      <button class="tool" id="muteBtn" type="button" data-i18n="btn.soundOn">Sound on</button>
+      <button class="tool" id="fsBtn" type="button" data-i18n="btn.fullscreen">Full screen</button>
     </div>
   </header>
 
@@ -139,66 +166,388 @@
   <section class="board" aria-live="polite">
     <div class="side">
       <span class="chip c"></span>
-      <span class="name">Cherry<small id="p1label">You</small></span>
+      <span class="name"><span data-i18n="name.cherry">Cherry</span><small id="p1label" data-i18n="label.you">You</small></span>
       <span class="score" id="s1">0</span>
     </div>
-    <div class="target">First to<br><strong id="goal">7</strong>
-      <div class="fs-tools"><button class="tool" id="fsPause" type="button">Pause</button><button class="tool" id="fsExit" type="button">Exit</button></div>
+    <div class="target"><span data-i18n="board.firstTo">First to</span><br><strong id="goal">7</strong>
+      <div class="fs-tools"><button class="tool" id="fsPause" type="button" data-i18n="btn.pause">Pause</button><button class="tool" id="fsMute" type="button" data-i18n="btn.soundOn">Sound on</button><button class="tool" id="fsExit" type="button" data-i18n="btn.fullscreen">Full screen</button></div>
     </div>
     <div class="side right">
       <span class="score" id="s2">0</span>
-      <span class="name" style="text-align:right">Blueberry<small id="p2label">CPU</small></span>
+      <span class="name" style="text-align:right"><span data-i18n="name.blueberry">Blueberry</span><small id="p2label" data-i18n="label.cpu">CPU</small></span>
       <span class="chip b"></span>
     </div>
   </section>
 
   <div class="stage">
-    <canvas id="game" width="960" height="648" aria-label="Volleyball court with two jelly bean players"></canvas>
+    <canvas id="game" width="960" height="648" aria-label="Volleyball court with two jelly bean players" data-i18n-aria="aria.court"></canvas>
     <div class="overlay" id="overlay">
       <div class="card" id="card">
-        <h2 id="ovTitle">Bounce it over the net</h2>
-        <p id="ovText">Score a point when the ball lands on your opponent's sand.</p>
+        <h2 id="ovTitle" data-i18n="menu.title">Bounce it over the net</h2>
+        <p id="ovText" data-i18n="menu.text">Score a point when the ball lands on your opponent's sand.</p>
         <div class="settings" id="settings">
-          <div class="settings-head"><span>Match settings</span><button class="link" id="resetCfg" type="button">Reset to defaults</button></div>
-          <div class="set"><label for="cfgBallSize">Ball size</label><input type="range" id="cfgBallSize" min="70" max="200" step="10"><output id="outBallSize" for="cfgBallSize"></output></div>
-          <div class="set"><label for="cfgBallSpeed">Ball speed</label><input type="range" id="cfgBallSpeed" min="50" max="150" step="5"><output id="outBallSpeed" for="cfgBallSpeed"></output></div>
-          <div class="set"><label for="cfgBeanSize">Jelly bean size</label><input type="range" id="cfgBeanSize" min="70" max="150" step="10"><output id="outBeanSize" for="cfgBeanSize"></output></div>
-          <div class="set"><span class="lbl" id="lblGoal">First to</span><div class="seg" id="segGoal" role="radiogroup" aria-labelledby="lblGoal"></div></div>
-          <div class="set"><span class="lbl" id="lblDiff">Computer</span><div class="seg" id="segDiff" role="radiogroup" aria-labelledby="lblDiff"></div></div>
-          <p class="hint">Computer difficulty is used in 1 player games.</p>
-          <div class="set"><span class="lbl" id="lblPow">Power-ups</span><div class="seg" id="segPow" role="radiogroup" aria-labelledby="lblPow"></div></div>
-          <p class="hint">Knock the ball through a bubble to grab its power for 5 seconds.</p>
+          <div class="settings-head"><span data-i18n="settings.head">Match settings</span><button class="link" id="resetCfg" type="button" data-i18n="settings.reset">Reset to defaults</button></div>
+          <div class="set"><label for="cfgBallSize" data-i18n="settings.ballSize">Ball size</label><input type="range" id="cfgBallSize" min="70" max="200" step="10"><output id="outBallSize" for="cfgBallSize"></output></div>
+          <div class="set"><label for="cfgBallSpeed" data-i18n="settings.ballSpeed">Ball speed</label><input type="range" id="cfgBallSpeed" min="50" max="150" step="5"><output id="outBallSpeed" for="cfgBallSpeed"></output></div>
+          <div class="set"><label for="cfgBeanSize" data-i18n="settings.beanSize">Jelly bean size</label><input type="range" id="cfgBeanSize" min="70" max="150" step="10"><output id="outBeanSize" for="cfgBeanSize"></output></div>
+          <div class="set"><span class="lbl" id="lblGoal" data-i18n="settings.firstTo">First to</span><div class="seg" id="segGoal" role="radiogroup" aria-labelledby="lblGoal"></div></div>
+          <div class="set"><span class="lbl" id="lblDiff" data-i18n="settings.computer">Computer</span><div class="seg" id="segDiff" role="radiogroup" aria-labelledby="lblDiff"></div></div>
+          <p class="hint" data-i18n="settings.computerHint">Computer difficulty is used in 1 player games.</p>
+          <div class="set"><span class="lbl" id="lblPow" data-i18n="settings.powerups">Power-ups</span><div class="seg" id="segPow" role="radiogroup" aria-labelledby="lblPow"></div></div>
+          <p class="hint" data-i18n="settings.powerupsHint">Knock the ball through a bubble to grab its power for 5 seconds.</p>
         </div>
+        <p class="hint keys-hint" data-i18n="menu.keysHint">Keys: Cherry A D + W · Blueberry ← → + ↑ · Mouse steers, click jumps · P pause</p>
         <div class="row" id="ovButtons">
-          <button class="btn" id="cpuBtn" type="button">1 player vs CPU</button>
-          <button class="btn alt" id="pvpBtn" type="button">2 players</button>
+          <button class="btn" id="cpuBtn" type="button" data-i18n="menu.onePlayer">1 player vs CPU</button>
+          <button class="btn alt" id="pvpBtn" type="button" data-i18n="menu.twoPlayers">2 players</button>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="touch" id="touch">
-    <div class="grp">
-      <button class="pad" data-k="left" type="button" aria-label="Move left">◀</button>
-      <button class="pad" data-k="right" type="button" aria-label="Move right">▶</button>
-    </div>
-    <button class="pad jump" data-k="jump" type="button">Jump</button>
+  <div class="pad-area" id="padArea" aria-label="Touch controls: drag to move, tap to jump" data-i18n-aria="aria.pad">
+    <div class="rail" id="rail"><span class="net-mark"></span><span class="knob c" id="knob0"></span><span class="knob b" id="knob1"></span></div>
+    <p class="pad-hint" id="padHint" data-i18n="pad.touch">Drag to move · Tap or flick up to jump</p>
   </div>
   </div>
 
   <div class="keys">
-    <span><strong style="color:var(--cherry)">Cherry</strong> &nbsp;<kbd>A</kbd> <kbd>D</kbd> move · <kbd>W</kbd> jump</span>
-    <span><strong style="color:#8fa0ff">Blueberry</strong> &nbsp;<kbd>←</kbd> <kbd>→</kbd> move · <kbd>↑</kbd> jump</span>
-    <span><kbd>P</kbd> pause</span>
-    <span><kbd>F</kbd> full screen</span>
+    <span><strong style="color:var(--cherry)" data-i18n="name.cherry">Cherry</strong> &nbsp;<kbd>A</kbd> <kbd>D</kbd> <span data-i18n="keys.move">move</span> · <kbd>W</kbd> <span data-i18n="keys.jump">jump</span></span>
+    <span><strong style="color:#8fa0ff" data-i18n="name.blueberry">Blueberry</strong> &nbsp;<kbd>←</kbd> <kbd>→</kbd> <span data-i18n="keys.move">move</span> · <kbd>↑</kbd> <span data-i18n="keys.jump">jump</span></span>
+    <span><strong data-i18n="keys.mouse">Mouse</strong> &nbsp;<span data-i18n="keys.mouseHelp">move to steer · click to jump</span></span>
+    <span><kbd>P</kbd> <span data-i18n="keys.pause">pause</span></span>
+    <span id="keyFs"><kbd>F</kbd> <span data-i18n="keys.fullscreen">full screen</span></span>
   </div>
 </main>
 
 <script>
 (() => {
+  // ---------- text: every word the player sees, in one place ----------
+  // To add a language, copy the `en` block, give it the language code (e.g. `es`, `pt`, `fr`)
+  // and translate the values. Keep the {placeholders} as they are. Anything missing falls back to English.
+  const I18N = {
+    en: {
+      'game.title': 'JellyB-Rally',
+      'title.w1': 'Jelly', 'title.w2': 'B', 'title.w3': '-Rally',
+      'name.cherry': 'Cherry', 'name.blueberry': 'Blueberry',
+      'label.you': 'You', 'label.cpu': 'CPU', 'label.p1': 'Player 1', 'label.p2': 'Player 2',
+      'board.firstTo': 'First to',
+      'btn.pause': 'Pause', 'btn.resume': 'Resume', 'btn.soundOn': 'Sound on', 'btn.soundOff': 'Sound off',
+      'btn.fullscreen': 'Full screen', 'btn.exitFullscreen': 'Exit full screen', 'btn.exit': 'Exit',
+      'btn.fsUnavailable': 'Full screen unavailable',
+      'menu.loading': 'Loading…',
+      'menu.title': 'Bounce it over the net',
+      'menu.text': "Score a point when the ball lands on your opponent's sand.",
+      'menu.onePlayer': '1 player vs CPU', 'menu.twoPlayers': '2 players',
+      'menu.keysHint': 'Keys: Cherry A D + W · Blueberry ← → + ↑ · Mouse steers, click jumps · P pause',
+      'settings.head': 'Match settings', 'settings.reset': 'Reset to defaults',
+      'settings.ballSize': 'Ball size', 'settings.ballSpeed': 'Ball speed', 'settings.beanSize': 'Jelly bean size',
+      'settings.firstTo': 'First to', 'settings.computer': 'Computer',
+      'settings.computerHint': 'Computer difficulty is used in 1 player games.',
+      'settings.powerups': 'Power-ups',
+      'settings.powerupsHint': 'Knock the ball through a bubble to grab its power for 5 seconds.',
+      'diff.easy': 'Easy', 'diff.normal': 'Normal', 'diff.hard': 'Hard',
+      'common.on': 'On', 'common.off': 'Off',
+      'keys.move': 'move', 'keys.jump': 'jump', 'keys.mouse': 'Mouse', 'keys.mouseHelp': 'move to steer · click to jump',
+      'keys.pause': 'pause', 'keys.fullscreen': 'full screen',
+      'pause.title': 'Paused', 'pause.score': '{p1} {s1} – {s2} {p2}', 'pause.quit': 'Quit to menu',
+      'over.wins': '{name} wins!', 'over.cpuWins': '{name} wins this one',
+      'over.final': 'Final score {s1} – {s2}', 'over.streak': 'Win streak {streak} (best {best})',
+      'over.playAgain': 'Play again', 'over.settings': 'Change settings',
+      'court.point': 'Point {name}!', 'court.serves': '{name} serves', 'court.gotPower': '{name}: {power}!',
+      'court.touchHint': 'Drag on the court to move · tap to jump',
+      'court.touchHint2p': 'Drag on your own half to move · tap to jump',
+      'pad.touch': 'Drag to move · Tap or flick up to jump', 'pad.mouse': 'Move the mouse to steer · click to jump',
+      'pad.twoPlayers': 'Each player drags on their own half · tap or flick up to jump',
+      'power.mega': 'Mega Bean', 'power.turbo': 'Turbo', 'power.spring': 'Super Jump',
+      'power.smash': 'Power Hit', 'power.syrup': 'Syrup', 'power.shrink': 'Shrink Ray',
+      'aria.court': 'Volleyball court with two jelly bean players',
+      'aria.pad': 'Touch controls: drag to move, tap to jump',
+    },
+    // Español (Latinoamérica)
+    es: {
+      'name.cherry': "Cereza", 'name.blueberry': "Arándano", 'label.you': "Tú", 'label.cpu': "CPU", 'label.p1': "Jugador 1",
+      'label.p2': "Jugador 2", 'board.firstTo': "Gana con", 'btn.pause': "Pausa", 'btn.resume': "Reanudar", 'btn.soundOn': "Sonido: sí",
+      'btn.soundOff': "Sonido: no", 'btn.fullscreen': "Pantalla completa", 'btn.exitFullscreen': "Salir de pantalla completa",
+      'btn.exit': "Salir", 'btn.fsUnavailable': "Pantalla completa no disponible", 'menu.loading': "Cargando…", 'menu.title': "¡Pásala por encima de la red!",
+      'menu.text': "Ganas un punto cuando la pelota cae en la arena de tu rival.", 'menu.onePlayer': "1 jugador vs CPU",
+      'menu.twoPlayers': "2 jugadores", 'menu.keysHint': "Teclas: Cereza A D + W · Arándano ← → + ↑ · El mouse dirige, clic para saltar · P pausa",
+      'settings.head': "Ajustes de la partida", 'settings.reset': "Restablecer", 'settings.ballSize': "Tamaño de la pelota",
+      'settings.ballSpeed': "Velocidad de la pelota", 'settings.beanSize': "Tamaño de las gomitas", 'settings.firstTo': "Puntos para ganar",
+      'settings.computer': "CPU", 'settings.computerHint': "La dificultad de la CPU se usa en partidas de 1 jugador.",
+      'settings.powerups': "Potenciadores", 'settings.powerupsHint': "Pasa la pelota por una burbuja para obtener su poder durante 5 segundos.",
+      'diff.easy': "Fácil", 'diff.normal': "Normal", 'diff.hard': "Difícil", 'common.on': "Sí", 'common.off': "No", 'keys.move': "mover",
+      'keys.jump': "saltar", 'keys.mouse': "Mouse", 'keys.mouseHelp': "muévelo para dirigir · clic para saltar", 'keys.pause': "pausa",
+      'keys.fullscreen': "pantalla completa", 'pause.title': "En pausa", 'pause.quit': "Salir al menú", 'over.wins': "¡Gana {name}!",
+      'over.cpuWins': "{name} gana esta vez", 'over.final': "Resultado final {s1} – {s2}", 'over.streak': "Racha de victorias {streak} (mejor {best})",
+      'over.playAgain': "Jugar otra vez", 'over.settings': "Cambiar ajustes", 'court.point': "¡Punto para {name}!", 'court.serves': "Saca {name}",
+      'court.gotPower': "{name}: ¡{power}!", 'court.touchHint': "Arrastra en la cancha para moverte · toca para saltar",
+      'court.touchHint2p': "Arrastra en tu mitad para moverte · toca para saltar", 'pad.touch': "Arrastra para moverte · Toca o desliza hacia arriba para saltar",
+      'pad.mouse': "Mueve el mouse para dirigir · clic para saltar", 'pad.twoPlayers': "Cada jugador arrastra en su mitad · toca o desliza hacia arriba para saltar",
+      'power.mega': "Megagomita", 'power.turbo': "Turbo", 'power.spring': "Supersalto", 'power.smash': "Golpe potente",
+      'power.syrup': "Almíbar", 'power.shrink': "Rayo reductor", 'aria.court': "Cancha de vóley con dos gomitas", 'aria.pad': "Controles táctiles: arrastra para moverte, toca para saltar",
+    },
+    // Português (Brasil)
+    pt: {
+      'name.cherry': "Cereja", 'name.blueberry': "Mirtilo", 'label.you': "Você", 'label.cpu': "CPU", 'label.p1': "Jogador 1",
+      'label.p2': "Jogador 2", 'board.firstTo': "Vence com", 'btn.pause': "Pausar", 'btn.resume': "Continuar", 'btn.soundOn': "Som: ligado",
+      'btn.soundOff': "Som: desligado", 'btn.fullscreen': "Tela cheia", 'btn.exitFullscreen': "Sair da tela cheia", 'btn.exit': "Sair",
+      'btn.fsUnavailable': "Tela cheia indisponível", 'menu.loading': "Carregando…", 'menu.title': "Passe a bola por cima da rede!",
+      'menu.text': "Você marca um ponto quando a bola cai na areia do adversário.", 'menu.onePlayer': "1 jogador vs CPU",
+      'menu.twoPlayers': "2 jogadores", 'menu.keysHint': "Teclas: Cereja A D + W · Mirtilo ← → + ↑ · O mouse guia, clique para pular · P pausa",
+      'settings.head': "Configurações da partida", 'settings.reset': "Restaurar padrão", 'settings.ballSize': "Tamanho da bola",
+      'settings.ballSpeed': "Velocidade da bola", 'settings.beanSize': "Tamanho das jujubas", 'settings.firstTo': "Pontos para vencer",
+      'settings.computer': "CPU", 'settings.computerHint': "A dificuldade da CPU vale para partidas de 1 jogador.", 'settings.powerups': "Power-ups",
+      'settings.powerupsHint': "Faça a bola passar por uma bolha para ganhar o poder dela por 5 segundos.", 'diff.easy': "Fácil",
+      'diff.normal': "Normal", 'diff.hard': "Difícil", 'common.on': "Sim", 'common.off': "Não", 'keys.move': "mover", 'keys.jump': "pular",
+      'keys.mouse': "Mouse", 'keys.mouseHelp': "mova para guiar · clique para pular", 'keys.pause': "pausar", 'keys.fullscreen': "tela cheia",
+      'pause.title': "Pausado", 'pause.quit': "Sair para o menu", 'over.wins': "{name} venceu!", 'over.cpuWins': "{name} venceu desta vez",
+      'over.final': "Placar final {s1} – {s2}", 'over.streak': "Vitórias seguidas {streak} (recorde {best})", 'over.playAgain': "Jogar de novo",
+      'over.settings': "Mudar configurações", 'court.point': "Ponto para {name}!", 'court.serves': "{name} saca", 'court.gotPower': "{name}: {power}!",
+      'court.touchHint': "Arraste na quadra para mover · toque para pular", 'court.touchHint2p': "Arraste na sua metade para mover · toque para pular",
+      'pad.touch': "Arraste para mover · Toque ou deslize para cima para pular", 'pad.mouse': "Mova o mouse para guiar · clique para pular",
+      'pad.twoPlayers': "Cada jogador arrasta na sua metade · toque ou deslize para cima para pular", 'power.mega': "Mega Jujuba",
+      'power.turbo': "Turbo", 'power.spring': "Super Pulo", 'power.smash': "Cortada Forte", 'power.syrup': "Calda", 'power.shrink': "Raio Encolhedor",
+      'aria.court': "Quadra de vôlei com duas jujubas", 'aria.pad': "Controles de toque: arraste para mover, toque para pular",
+    },
+    // Français
+    fr: {
+      'name.cherry': "Cerise", 'name.blueberry': "Myrtille", 'label.you': "Toi", 'label.cpu': "Ordi", 'label.p1': "Joueur 1",
+      'label.p2': "Joueur 2", 'board.firstTo': "Premier à", 'btn.pause': "Pause", 'btn.resume': "Reprendre", 'btn.soundOn': "Son : activé",
+      'btn.soundOff': "Son : coupé", 'btn.fullscreen': "Plein écran", 'btn.exitFullscreen': "Quitter le plein écran", 'btn.exit': "Quitter",
+      'btn.fsUnavailable': "Plein écran indisponible", 'menu.loading': "Chargement…", 'menu.title': "Fais-la passer au-dessus du filet !",
+      'menu.text': "Tu marques un point quand la balle tombe sur le sable adverse.", 'menu.onePlayer': "1 joueur contre l’ordi",
+      'menu.twoPlayers': "2 joueurs", 'menu.keysHint': "Touches : Cerise A D + W · Myrtille ← → + ↑ · La souris dirige, clic pour sauter · P pause",
+      'settings.head': "Réglages du match", 'settings.reset': "Valeurs par défaut", 'settings.ballSize': "Taille de la balle",
+      'settings.ballSpeed': "Vitesse de la balle", 'settings.beanSize': "Taille des bonbons", 'settings.firstTo': "Points pour gagner",
+      'settings.computer': "Ordinateur", 'settings.computerHint': "La difficulté de l’ordinateur s’applique aux parties à 1 joueur.",
+      'settings.powerups': "Bonus", 'settings.powerupsHint': "Fais passer la balle dans une bulle pour obtenir son pouvoir pendant 5 secondes.",
+      'diff.easy': "Facile", 'diff.normal': "Normal", 'diff.hard': "Difficile", 'common.on': "Oui", 'common.off': "Non",
+      'keys.move': "bouger", 'keys.jump': "sauter", 'keys.mouse': "Souris", 'keys.mouseHelp': "bouge-la pour diriger · clic pour sauter",
+      'keys.pause': "pause", 'keys.fullscreen': "plein écran", 'pause.title': "En pause", 'pause.quit': "Retour au menu",
+      'over.wins': "{name} gagne !", 'over.cpuWins': "{name} gagne cette fois", 'over.final': "Score final {s1} – {s2}",
+      'over.streak': "Série de victoires {streak} (record {best})", 'over.playAgain': "Rejouer", 'over.settings': "Modifier les réglages",
+      'court.point': "Point pour {name} !", 'court.serves': "{name} sert", 'court.gotPower': "{name} : {power} !", 'court.touchHint': "Glisse sur le terrain pour bouger · touche pour sauter",
+      'court.touchHint2p': "Glisse sur ta moitié pour bouger · touche pour sauter", 'pad.touch': "Glisse pour bouger · Touche ou balaie vers le haut pour sauter",
+      'pad.mouse': "Bouge la souris pour diriger · clic pour sauter", 'pad.twoPlayers': "Chacun glisse sur sa moitié · touche ou balaie vers le haut pour sauter",
+      'power.mega': "Méga Bonbon", 'power.turbo': "Turbo", 'power.spring': "Super Saut", 'power.smash': "Frappe Puissante",
+      'power.syrup': "Sirop", 'power.shrink': "Rayon Rétrécissant", 'aria.court': "Terrain de volley avec deux bonbons",
+      'aria.pad': "Commandes tactiles : glisse pour bouger, touche pour sauter",
+    },
+    // Deutsch
+    de: {
+      'name.cherry': "Kirsche", 'name.blueberry': "Blaubeere", 'label.you': "Du", 'label.cpu': "CPU", 'label.p1': "Spieler 1",
+      'label.p2': "Spieler 2", 'board.firstTo': "Spiel bis", 'btn.pause': "Pause", 'btn.resume': "Weiter", 'btn.soundOn': "Ton an",
+      'btn.soundOff': "Ton aus", 'btn.fullscreen': "Vollbild", 'btn.exitFullscreen': "Vollbild beenden", 'btn.exit': "Beenden",
+      'btn.fsUnavailable': "Vollbild nicht verfügbar", 'menu.loading': "Lädt…", 'menu.title': "Spiel ihn übers Netz!",
+      'menu.text': "Du punktest, wenn der Ball im Sand deines Gegners landet.", 'menu.onePlayer': "1 Spieler gegen CPU",
+      'menu.twoPlayers': "2 Spieler", 'menu.keysHint': "Tasten: Kirsche A D + W · Blaubeere ← → + ↑ · Maus steuert, Klick springt · P Pause",
+      'settings.head': "Spieleinstellungen", 'settings.reset': "Zurücksetzen", 'settings.ballSize': "Ballgröße", 'settings.ballSpeed': "Balltempo",
+      'settings.beanSize': "Bohnengröße", 'settings.firstTo': "Punkte zum Sieg", 'settings.computer': "Computer", 'settings.computerHint': "Die Computer-Stärke gilt für Spiele mit 1 Spieler.",
+      'settings.powerups': "Power-ups", 'settings.powerupsHint': "Schlag den Ball durch eine Blase, um 5 Sekunden lang ihre Kraft zu bekommen.",
+      'diff.easy': "Leicht", 'diff.normal': "Normal", 'diff.hard': "Schwer", 'common.on': "An", 'common.off': "Aus", 'keys.move': "bewegen",
+      'keys.jump': "springen", 'keys.mouse': "Maus", 'keys.mouseHelp': "bewegen zum Steuern · Klick zum Springen", 'keys.pause': "Pause",
+      'keys.fullscreen': "Vollbild", 'pause.title': "Pausiert", 'pause.quit': "Zum Menü", 'over.wins': "{name} gewinnt!",
+      'over.cpuWins': "{name} gewinnt diesmal", 'over.final': "Endstand {s1} – {s2}", 'over.streak': "Siegesserie {streak} (Rekord {best})",
+      'over.playAgain': "Nochmal spielen", 'over.settings': "Einstellungen ändern", 'court.point': "Punkt für {name}!",
+      'court.serves': "{name} schlägt auf", 'court.gotPower': "{name}: {power}!", 'court.touchHint': "Übers Feld ziehen zum Bewegen · tippen zum Springen",
+      'court.touchHint2p': "Auf deiner Hälfte ziehen zum Bewegen · tippen zum Springen", 'pad.touch': "Ziehen zum Bewegen · Tippen oder nach oben wischen zum Springen",
+      'pad.mouse': "Maus bewegen zum Steuern · Klick zum Springen", 'pad.twoPlayers': "Jeder zieht auf seiner Hälfte · tippen oder nach oben wischen zum Springen",
+      'power.mega': "Mega-Bohne", 'power.turbo': "Turbo", 'power.spring': "Supersprung", 'power.smash': "Powerschlag",
+      'power.syrup': "Sirup", 'power.shrink': "Schrumpfstrahl", 'aria.court': "Volleyballfeld mit zwei Gummibohnen", 'aria.pad': "Touch-Steuerung: ziehen zum Bewegen, tippen zum Springen",
+    },
+    // Italiano
+    it: {
+      'name.cherry': "Ciliegia", 'name.blueberry': "Mirtillo", 'label.you': "Tu", 'label.cpu': "CPU", 'label.p1': "Giocatore 1",
+      'label.p2': "Giocatore 2", 'board.firstTo': "Si vince a", 'btn.pause': "Pausa", 'btn.resume': "Riprendi", 'btn.soundOn': "Audio sì",
+      'btn.soundOff': "Audio no", 'btn.fullscreen': "Schermo intero", 'btn.exitFullscreen': "Esci da schermo intero", 'btn.exit': "Esci",
+      'btn.fsUnavailable': "Schermo intero non disponibile", 'menu.loading': "Caricamento…", 'menu.title': "Mandala oltre la rete!",
+      'menu.text': "Fai punto quando la palla cade sulla sabbia dell’avversario.", 'menu.onePlayer': "1 giocatore contro la CPU",
+      'menu.twoPlayers': "2 giocatori", 'menu.keysHint': "Tasti: Ciliegia A D + W · Mirtillo ← → + ↑ · Il mouse guida, clic per saltare · P pausa",
+      'settings.head': "Impostazioni partita", 'settings.reset': "Ripristina", 'settings.ballSize': "Dimensione palla",
+      'settings.ballSpeed': "Velocità palla", 'settings.beanSize': "Dimensione caramelle", 'settings.firstTo': "Punti per vincere",
+      'settings.computer': "Computer", 'settings.computerHint': "La difficoltà del computer vale nelle partite a 1 giocatore.",
+      'settings.powerups': "Potenziamenti", 'settings.powerupsHint': "Fai passare la palla in una bolla per ottenere il suo potere per 5 secondi.",
+      'diff.easy': "Facile", 'diff.normal': "Normale", 'diff.hard': "Difficile", 'common.on': "Sì", 'common.off': "No",
+      'keys.move': "muovi", 'keys.jump': "salta", 'keys.mouse': "Mouse", 'keys.mouseHelp': "muovi per guidare · clic per saltare",
+      'keys.pause': "pausa", 'keys.fullscreen': "schermo intero", 'pause.title': "In pausa", 'pause.quit': "Torna al menu",
+      'over.wins': "Vince {name}!", 'over.cpuWins': "Stavolta vince {name}", 'over.final': "Punteggio finale {s1} – {s2}",
+      'over.streak': "Vittorie di fila {streak} (record {best})", 'over.playAgain': "Gioca ancora", 'over.settings': "Cambia impostazioni",
+      'court.point': "Punto per {name}!", 'court.serves': "Batte {name}", 'court.gotPower': "{name}: {power}!", 'court.touchHint': "Trascina sul campo per muoverti · tocca per saltare",
+      'court.touchHint2p': "Trascina nella tua metà per muoverti · tocca per saltare", 'pad.touch': "Trascina per muoverti · Tocca o scorri in su per saltare",
+      'pad.mouse': "Muovi il mouse per guidare · clic per saltare", 'pad.twoPlayers': "Ognuno trascina nella sua metà · tocca o scorri in su per saltare",
+      'power.mega': "Mega Caramella", 'power.turbo': "Turbo", 'power.spring': "Super Salto", 'power.smash': "Colpo Potente",
+      'power.syrup': "Sciroppo", 'power.shrink': "Raggio Rimpicciolente", 'aria.court': "Campo da pallavolo con due caramelle",
+      'aria.pad': "Controlli touch: trascina per muoverti, tocca per saltare",
+    },
+    // Bahasa Indonesia
+    id: {
+      'name.cherry': "Ceri", 'name.blueberry': "Bluberi", 'label.you': "Kamu", 'label.cpu': "CPU", 'label.p1': "Pemain 1",
+      'label.p2': "Pemain 2", 'board.firstTo': "Menang di", 'btn.pause': "Jeda", 'btn.resume': "Lanjut", 'btn.soundOn': "Suara nyala",
+      'btn.soundOff': "Suara mati", 'btn.fullscreen': "Layar penuh", 'btn.exitFullscreen': "Keluar layar penuh", 'btn.exit': "Keluar",
+      'btn.fsUnavailable': "Layar penuh tidak tersedia", 'menu.loading': "Memuat…", 'menu.title': "Pukul melewati net!",
+      'menu.text': "Kamu dapat poin saat bola jatuh di pasir lawan.", 'menu.onePlayer': "1 pemain lawan CPU", 'menu.twoPlayers': "2 pemain",
+      'menu.keysHint': "Tombol: Ceri A D + W · Bluberi ← → + ↑ · Mouse untuk mengarahkan, klik untuk lompat · P jeda",
+      'settings.head': "Pengaturan pertandingan", 'settings.reset': "Kembalikan bawaan", 'settings.ballSize': "Ukuran bola",
+      'settings.ballSpeed': "Kecepatan bola", 'settings.beanSize': "Ukuran permen jeli", 'settings.firstTo': "Poin untuk menang",
+      'settings.computer': "Komputer", 'settings.computerHint': "Tingkat kesulitan komputer dipakai di permainan 1 pemain.",
+      'settings.powerups': "Power-up", 'settings.powerupsHint': "Pukul bola menembus gelembung untuk mendapat kekuatannya selama 5 detik.",
+      'diff.easy': "Mudah", 'diff.normal': "Normal", 'diff.hard': "Sulit", 'common.on': "Nyala", 'common.off': "Mati",
+      'keys.move': "gerak", 'keys.jump': "lompat", 'keys.mouse': "Mouse", 'keys.mouseHelp': "gerakkan untuk mengarahkan · klik untuk lompat",
+      'keys.pause': "jeda", 'keys.fullscreen': "layar penuh", 'pause.title': "Dijeda", 'pause.quit': "Kembali ke menu",
+      'over.wins': "{name} menang!", 'over.cpuWins': "{name} menang kali ini", 'over.final': "Skor akhir {s1} – {s2}",
+      'over.streak': "Menang beruntun {streak} (terbaik {best})", 'over.playAgain': "Main lagi", 'over.settings': "Ubah pengaturan",
+      'court.point': "Poin untuk {name}!", 'court.serves': "{name} servis", 'court.gotPower': "{name}: {power}!", 'court.touchHint': "Geser di lapangan untuk bergerak · ketuk untuk lompat",
+      'court.touchHint2p': "Geser di sisimu untuk bergerak · ketuk untuk lompat", 'pad.touch': "Geser untuk bergerak · Ketuk atau usap ke atas untuk lompat",
+      'pad.mouse': "Gerakkan mouse untuk mengarahkan · klik untuk lompat", 'pad.twoPlayers': "Tiap pemain menggeser di sisinya · ketuk atau usap ke atas untuk lompat",
+      'power.mega': "Mega Jeli", 'power.turbo': "Turbo", 'power.spring': "Lompat Super", 'power.smash': "Pukulan Kuat",
+      'power.syrup': "Sirup", 'power.shrink': "Sinar Penyusut", 'aria.court': "Lapangan voli dengan dua permen jeli", 'aria.pad': "Kontrol sentuh: geser untuk bergerak, ketuk untuk lompat",
+    },
+    // Türkçe
+    tr: {
+      'name.cherry': "Kiraz", 'name.blueberry': "Yaban Mersini", 'label.you': "Sen", 'label.cpu': "CPU", 'label.p1': "Oyuncu 1",
+      'label.p2': "Oyuncu 2", 'board.firstTo': "Hedef", 'btn.pause': "Duraklat", 'btn.resume': "Devam et", 'btn.soundOn': "Ses açık",
+      'btn.soundOff': "Ses kapalı", 'btn.fullscreen': "Tam ekran", 'btn.exitFullscreen': "Tam ekrandan çık", 'btn.exit': "Çık",
+      'btn.fsUnavailable': "Tam ekran kullanılamıyor", 'menu.loading': "Yükleniyor…", 'menu.title': "Topu fileden geçir!",
+      'menu.text': "Top rakibin kumuna düştüğünde sayı kazanırsın.", 'menu.onePlayer': "1 oyuncu, CPU’ya karşı", 'menu.twoPlayers': "2 oyuncu",
+      'menu.keysHint': "Tuşlar: Kiraz A D + W · Yaban Mersini ← → + ↑ · Fare yönlendirir, tıkla zıpla · P duraklat", 'settings.head': "Maç ayarları",
+      'settings.reset': "Varsayılana dön", 'settings.ballSize': "Top boyutu", 'settings.ballSpeed': "Top hızı", 'settings.beanSize': "Jelibon boyutu",
+      'settings.firstTo': "Kazanmak için sayı", 'settings.computer': "Bilgisayar", 'settings.computerHint': "Bilgisayar zorluğu tek oyunculu maçlarda geçerlidir.",
+      'settings.powerups': "Güçlendiriciler", 'settings.powerupsHint': "Topu bir baloncuğun içinden geçir, gücünü 5 saniye boyunca kazan.",
+      'diff.easy': "Kolay", 'diff.normal': "Normal", 'diff.hard': "Zor", 'common.on': "Açık", 'common.off': "Kapalı", 'keys.move': "hareket",
+      'keys.jump': "zıpla", 'keys.mouse': "Fare", 'keys.mouseHelp': "yönlendirmek için oynat · zıplamak için tıkla", 'keys.pause': "duraklat",
+      'keys.fullscreen': "tam ekran", 'pause.title': "Duraklatıldı", 'pause.quit': "Menüye dön", 'over.wins': "{name} kazandı!",
+      'over.cpuWins': "Bu sefer {name} kazandı", 'over.final': "Maç sonucu {s1} – {s2}", 'over.streak': "Galibiyet serisi {streak} (en iyi {best})",
+      'over.playAgain': "Tekrar oyna", 'over.settings': "Ayarları değiştir", 'court.point': "Sayı: {name}!", 'court.serves': "Servis: {name}",
+      'court.gotPower': "{name}: {power}!", 'court.touchHint': "Hareket için sahada sürükle · zıplamak için dokun", 'court.touchHint2p': "Hareket için kendi yarında sürükle · zıplamak için dokun",
+      'pad.touch': "Hareket için sürükle · Zıplamak için dokun ya da yukarı kaydır", 'pad.mouse': "Yönlendirmek için fareyi oynat · zıplamak için tıkla",
+      'pad.twoPlayers': "Herkes kendi yarısında sürükler · zıplamak için dokun ya da yukarı kaydır", 'power.mega': "Mega Jelibon",
+      'power.turbo': "Turbo", 'power.spring': "Süper Zıplama", 'power.smash': "Güçlü Vuruş", 'power.syrup': "Şurup", 'power.shrink': "Küçültme Işını",
+      'aria.court': "İki jelibonlu voleybol sahası", 'aria.pad': "Dokunmatik kontroller: hareket için sürükle, zıplamak için dokun",
+    },
+    // 日本語
+    ja: {
+      'name.cherry': "チェリー", 'name.blueberry': "ブルーベリー", 'label.you': "あなた", 'label.cpu': "CPU", 'label.p1': "プレイヤー1",
+      'label.p2': "プレイヤー2", 'board.firstTo': "勝利点", 'btn.pause': "ポーズ", 'btn.resume': "再開", 'btn.soundOn': "サウンド オン", 'btn.soundOff': "サウンド オフ",
+      'btn.fullscreen': "全画面", 'btn.exitFullscreen': "全画面を終了", 'btn.exit': "終了", 'btn.fsUnavailable': "全画面は使えません", 'menu.loading': "読み込み中…",
+      'menu.title': "ネットの向こうへ打ち返そう！", 'menu.text': "相手の砂浜にボールが落ちたら1点！", 'menu.onePlayer': "1人プレイ（CPU対戦）", 'menu.twoPlayers': "2人プレイ",
+      'menu.keysHint': "キー：チェリー A D + W ・ ブルーベリー ← → + ↑ ・ マウスで移動、クリックでジャンプ ・ P ポーズ", 'settings.head': "試合の設定", 'settings.reset': "初期設定に戻す",
+      'settings.ballSize': "ボールの大きさ", 'settings.ballSpeed': "ボールの速さ", 'settings.beanSize': "ジェリービーンズの大きさ", 'settings.firstTo': "勝利点",
+      'settings.computer': "CPU", 'settings.computerHint': "CPUの強さは1人プレイで使われます。", 'settings.powerups': "パワーアップ", 'settings.powerupsHint': "ボールをバブルに通すと、その力を5秒間ゲット！",
+      'diff.easy': "やさしい", 'diff.normal': "ふつう", 'diff.hard': "むずかしい", 'common.on': "オン", 'common.off': "オフ", 'keys.move': "移動",
+      'keys.jump': "ジャンプ", 'keys.mouse': "マウス", 'keys.mouseHelp': "動かして移動 ・ クリックでジャンプ", 'keys.pause': "ポーズ", 'keys.fullscreen': "全画面",
+      'pause.title': "ポーズ中", 'pause.quit': "メニューに戻る", 'over.wins': "{name}の勝ち！", 'over.cpuWins': "今回は{name}の勝ち", 'over.final': "最終スコア {s1} – {s2}",
+      'over.streak': "連勝 {streak}（最高 {best}）", 'over.playAgain': "もう一度", 'over.settings': "設定を変える", 'court.point': "{name}に1点！",
+      'court.serves': "{name}のサーブ", 'court.gotPower': "{name}：{power}！", 'court.touchHint': "コートをドラッグして移動 ・ タップでジャンプ",
+      'court.touchHint2p': "自分の側をドラッグして移動 ・ タップでジャンプ", 'pad.touch': "ドラッグで移動 ・ タップか上にフリックでジャンプ", 'pad.mouse': "マウスで移動 ・ クリックでジャンプ",
+      'pad.twoPlayers': "それぞれ自分の側をドラッグ ・ タップか上にフリックでジャンプ", 'power.mega': "メガビーン", 'power.turbo': "ターボ", 'power.spring': "スーパージャンプ",
+      'power.smash': "パワーショット", 'power.syrup': "シロップ", 'power.shrink': "ちぢみ光線", 'aria.court': "ジェリービーンズ2つのバレーボールコート", 'aria.pad': "タッチ操作：ドラッグで移動、タップでジャンプ",
+    },
+    // 한국어
+    ko: {
+      'name.cherry': "체리", 'name.blueberry': "블루베리", 'label.you': "나", 'label.cpu': "CPU", 'label.p1': "플레이어 1", 'label.p2': "플레이어 2",
+      'board.firstTo': "목표 점수", 'btn.pause': "일시정지", 'btn.resume': "계속하기", 'btn.soundOn': "소리 켬", 'btn.soundOff': "소리 끔",
+      'btn.fullscreen': "전체 화면", 'btn.exitFullscreen': "전체 화면 종료", 'btn.exit': "나가기", 'btn.fsUnavailable': "전체 화면을 사용할 수 없어요",
+      'menu.loading': "불러오는 중…", 'menu.title': "네트 너머로 넘겨요!", 'menu.text': "상대편 모래에 공이 떨어지면 1점!", 'menu.onePlayer': "1인용 (CPU 대전)",
+      'menu.twoPlayers': "2인용", 'menu.keysHint': "키: 체리 A D + W · 블루베리 ← → + ↑ · 마우스로 이동, 클릭으로 점프 · P 일시정지", 'settings.head': "경기 설정",
+      'settings.reset': "기본값으로", 'settings.ballSize': "공 크기", 'settings.ballSpeed': "공 속도", 'settings.beanSize': "젤리빈 크기",
+      'settings.firstTo': "목표 점수", 'settings.computer': "컴퓨터", 'settings.computerHint': "컴퓨터 난이도는 1인용 경기에 적용돼요.", 'settings.powerups': "파워업",
+      'settings.powerupsHint': "공을 방울에 통과시키면 5초 동안 그 힘을 얻어요.", 'diff.easy': "쉬움", 'diff.normal': "보통", 'diff.hard': "어려움",
+      'common.on': "켬", 'common.off': "끔", 'keys.move': "이동", 'keys.jump': "점프", 'keys.mouse': "마우스", 'keys.mouseHelp': "움직여서 이동 · 클릭으로 점프",
+      'keys.pause': "일시정지", 'keys.fullscreen': "전체 화면", 'pause.title': "일시정지됨", 'pause.quit': "메뉴로", 'over.wins': "{name} 승리!",
+      'over.cpuWins': "이번엔 {name} 승리", 'over.final': "최종 점수 {s1} – {s2}", 'over.streak': "연승 {streak} (최고 {best})", 'over.playAgain': "다시 하기",
+      'over.settings': "설정 바꾸기", 'court.point': "{name} 득점!", 'court.serves': "{name} 서브", 'court.gotPower': "{name}: {power}!",
+      'court.touchHint': "코트를 드래그해서 이동 · 탭해서 점프", 'court.touchHint2p': "내 쪽을 드래그해서 이동 · 탭해서 점프", 'pad.touch': "드래그로 이동 · 탭하거나 위로 튕겨서 점프",
+      'pad.mouse': "마우스로 이동 · 클릭으로 점프", 'pad.twoPlayers': "각자 자기 쪽을 드래그 · 탭하거나 위로 튕겨서 점프", 'power.mega': "메가 빈", 'power.turbo': "터보",
+      'power.spring': "슈퍼 점프", 'power.smash': "파워 스파이크", 'power.syrup': "시럽", 'power.shrink': "축소 광선", 'aria.court': "젤리빈 두 개가 있는 배구 코트",
+      'aria.pad': "터치 조작: 드래그로 이동, 탭으로 점프",
+    },
+    // हिन्दी
+    hi: {
+      'name.cherry': "चेरी", 'name.blueberry': "ब्लूबेरी", 'label.you': "आप", 'label.cpu': "CPU", 'label.p1': "खिलाड़ी 1",
+      'label.p2': "खिलाड़ी 2", 'board.firstTo': "जीत के अंक", 'btn.pause': "रोकें", 'btn.resume': "जारी रखें", 'btn.soundOn': "आवाज़ चालू",
+      'btn.soundOff': "आवाज़ बंद", 'btn.fullscreen': "फ़ुल स्क्रीन", 'btn.exitFullscreen': "फ़ुल स्क्रीन से बाहर", 'btn.exit': "बाहर",
+      'btn.fsUnavailable': "फ़ुल स्क्रीन उपलब्ध नहीं", 'menu.loading': "लोड हो रहा है…", 'menu.title': "गेंद नेट के पार भेजें!",
+      'menu.text': "जब गेंद विरोधी की रेत पर गिरे, तो आपको अंक मिलता है।", 'menu.onePlayer': "1 खिलाड़ी बनाम CPU", 'menu.twoPlayers': "2 खिलाड़ी",
+      'menu.keysHint': "कुंजियाँ: चेरी A D + W · ब्लूबेरी ← → + ↑ · माउस से चलाएँ, क्लिक से कूदें · P रोकें", 'settings.head': "मैच सेटिंग",
+      'settings.reset': "डिफ़ॉल्ट पर लौटें", 'settings.ballSize': "गेंद का आकार", 'settings.ballSpeed': "गेंद की गति",
+      'settings.beanSize': "जेली बीन का आकार", 'settings.firstTo': "जीत के अंक", 'settings.computer': "कंप्यूटर", 'settings.computerHint': "कंप्यूटर की कठिनाई 1 खिलाड़ी वाले खेल में लागू होती है।",
+      'settings.powerups': "पावर-अप", 'settings.powerupsHint': "गेंद को बुलबुले से गुज़ारें और 5 सेकंड के लिए उसकी ताकत पाएँ।",
+      'diff.easy': "आसान", 'diff.normal': "सामान्य", 'diff.hard': "कठिन", 'common.on': "चालू", 'common.off': "बंद", 'keys.move': "चलें",
+      'keys.jump': "कूदें", 'keys.mouse': "माउस", 'keys.mouseHelp': "चलाने के लिए हिलाएँ · कूदने के लिए क्लिक करें", 'keys.pause': "रोकें",
+      'keys.fullscreen': "फ़ुल स्क्रीन", 'pause.title': "रुका हुआ", 'pause.quit': "मेनू पर जाएँ", 'over.wins': "{name} की जीत!",
+      'over.cpuWins': "इस बार {name} की जीत", 'over.final': "अंतिम स्कोर {s1} – {s2}", 'over.streak': "लगातार जीत {streak} (सबसे अच्छा {best})",
+      'over.playAgain': "फिर से खेलें", 'over.settings': "सेटिंग बदलें", 'court.point': "{name} को अंक!", 'court.serves': "{name} की सर्व",
+      'court.gotPower': "{name}: {power}!", 'court.touchHint': "चलने के लिए कोर्ट पर खींचें · कूदने के लिए टैप करें", 'court.touchHint2p': "चलने के लिए अपने हिस्से में खींचें · कूदने के लिए टैप करें",
+      'pad.touch': "चलने के लिए खींचें · कूदने के लिए टैप करें या ऊपर स्वाइप करें", 'pad.mouse': "चलाने के लिए माउस हिलाएँ · कूदने के लिए क्लिक करें",
+      'pad.twoPlayers': "हर खिलाड़ी अपने हिस्से में खींचे · कूदने के लिए टैप करें या ऊपर स्वाइप करें", 'power.mega': "मेगा बीन",
+      'power.turbo': "टर्बो", 'power.spring': "सुपर जंप", 'power.smash': "पावर हिट", 'power.syrup': "शरबत", 'power.shrink': "सिकुड़न किरण",
+      'aria.court': "दो जेली बीन वाला वॉलीबॉल कोर्ट", 'aria.pad': "टच कंट्रोल: चलने के लिए खींचें, कूदने के लिए टैप करें",
+    },
+    // Afrikaans
+    af: {
+      'name.cherry': "Kersie", 'name.blueberry': "Bloubessie", 'label.you': "Jy", 'label.cpu': "CPU", 'label.p1': "Speler 1",
+      'label.p2': "Speler 2", 'board.firstTo': "Eerste tot", 'btn.pause': "Pouse", 'btn.resume': "Hervat", 'btn.soundOn': "Klank aan",
+      'btn.soundOff': "Klank af", 'btn.fullscreen': "Volskerm", 'btn.exitFullscreen': "Verlaat volskerm", 'btn.exit': "Verlaat",
+      'btn.fsUnavailable': "Volskerm nie beskikbaar nie", 'menu.loading': "Laai tans…", 'menu.title': "Stuur dit oor die net!",
+      'menu.text': "Jy kry ’n punt wanneer die bal op jou teenstander se sand land.", 'menu.onePlayer': "1 speler teen CPU",
+      'menu.twoPlayers': "2 spelers", 'menu.keysHint': "Sleutels: Kersie A D + W · Bloubessie ← → + ↑ · Muis stuur, klik om te spring · P pouse",
+      'settings.head': "Wedstrydinstellings", 'settings.reset': "Herstel verstek", 'settings.ballSize': "Balgrootte", 'settings.ballSpeed': "Balspoed",
+      'settings.beanSize': "Boontjiegrootte", 'settings.firstTo': "Punte om te wen", 'settings.computer': "Rekenaar",
+      'settings.computerHint': "Die rekenaar se moeilikheid geld vir 1-speler-wedstryde.", 'settings.powerups': "Kragbonusse",
+      'settings.powerupsHint': "Slaan die bal deur ’n borrel om sy krag vir 5 sekondes te kry.", 'diff.easy': "Maklik",
+      'diff.normal': "Normaal", 'diff.hard': "Moeilik", 'common.on': "Aan", 'common.off': "Af", 'keys.move': "beweeg",
+      'keys.jump': "spring", 'keys.mouse': "Muis", 'keys.mouseHelp': "beweeg om te stuur · klik om te spring", 'keys.pause': "pouse",
+      'keys.fullscreen': "volskerm", 'pause.title': "Gepouseer", 'pause.quit': "Terug na kieslys", 'over.wins': "{name} wen!",
+      'over.cpuWins': "{name} wen dié keer", 'over.final': "Eindtelling {s1} – {s2}", 'over.streak': "Wenreeks {streak} (beste {best})",
+      'over.playAgain': "Speel weer", 'over.settings': "Verander instellings", 'court.point': "Punt vir {name}!", 'court.serves': "{name} slaan af",
+      'court.gotPower': "{name}: {power}!", 'court.touchHint': "Sleep op die baan om te beweeg · tik om te spring", 'court.touchHint2p': "Sleep op jou helfte om te beweeg · tik om te spring",
+      'pad.touch': "Sleep om te beweeg · Tik of swiep op om te spring", 'pad.mouse': "Beweeg die muis om te stuur · klik om te spring",
+      'pad.twoPlayers': "Elke speler sleep op sy eie helfte · tik of swiep op om te spring", 'power.mega': "Mega-boontjie",
+      'power.turbo': "Turbo", 'power.spring': "Supersprong", 'power.smash': "Kraghou", 'power.syrup': "Stroop", 'power.shrink': "Krimpstraal",
+      'aria.court': "Vlugbalbaan met twee jellieboontjies", 'aria.pad': "Raakkontroles: sleep om te beweeg, tik om te spring",
+    },
+  };
+  let LANG = 'en';
+  // Chango (the headline font) only covers Western European letters. These languages use heavy
+  // Nunito / the device's own font for headlines instead, so no heading mixes two fonts.
+  const PLAIN_DISPLAY = ['tr', 'ja', 'ko', 'hi'];
+  let DISPLAY_FONT = px => `400 ${px}px Chango, "Arial Black", Impact, sans-serif`;
+  function t(key, vars) {
+    let str = (I18N[LANG] && I18N[LANG][key]) ?? I18N.en[key] ?? key;
+    if (vars) str = str.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
+    return str;
+  }
+  const BODY_STACK = 'Nunito, system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "Nirmala UI", "Noto Sans Devanagari", sans-serif';
+  // canvas text that must fit: shrink the font until the text is no wider than maxW
+  function fitFont(fontFn, px, text, maxW) {
+    let size = px; ctx.font = fontFn(size);
+    while (size > 10 && ctx.measureText(text).width > maxW) { size -= 1; ctx.font = fontFn(size); }
+  }
+  const fname = side => t(side ? 'name.blueberry' : 'name.cherry');
+  // pick the best table for a language tag: exact ("pt-BR"), then base language ("pt"), then English
+  function pickLanguage(tag) {
+    tag = String(tag || 'en').toLowerCase();
+    const keys = Object.keys(I18N);
+    return keys.find(k => k.toLowerCase() === tag) || keys.find(k => k.toLowerCase() === tag.split('-')[0]) || 'en';
+  }
+  // text written into the page itself (elements marked data-i18n / data-i18n-aria)
+  function applyPageText() {
+    document.documentElement.lang = LANG;
+    const plain = PLAIN_DISPLAY.includes(LANG);
+    document.documentElement.dataset.display = plain ? 'plain' : 'fun';
+    DISPLAY_FONT = plain ? (px => `900 ${Math.round(px * .92)}px ${BODY_STACK}`) : (px => `400 ${px}px Chango, "Arial Black", Impact, sans-serif`);
+    document.title = t('game.title');
+    document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll('[data-i18n-aria]').forEach(el => el.setAttribute('aria-label', t(el.dataset.i18nAria)));
+    document.getElementById('card').dataset.loading = t('menu.loading');
+  }
+
   // ---------- world constants ----------
-  const W = 960, H = 648, GY = 578;             // H is 20% taller than 540; the extra room is added above the court
-  const NL = 474, NR = 486, NT = 426;           // net rectangle
+  // The court's size in game units. Wide screens use 960 × 648. Upright screens use a narrower,
+  // taller court (see setWorld) so the beans draw bigger on a phone held upright.
+  let W = 960, H = 648, GY = 578;               // GY = ground line, 70 units above the bottom
+  let NL = 474, NR = 486, NT = 426;             // net rectangle
   const G_P = 2400, JUMP = 960, SPEED = 430;    // player physics
   const G_B = 950, MAXV = 1150;                 // ball physics
   const BASE_BR = 17;                            // ball radius at 100% size
@@ -207,27 +556,64 @@
   let PR = BASE_PR, BS = 1;                      // BS = bean size multiplier
   const STEP = 1 / 240;
   const CEIL = 0, CEIL_E = 0.85;                 // top edge of the frame is a solid ceiling
-  const SERVE_Y = 258;
+  let SERVE_Y = 258;                             // serve height, 320 units above the ground
   let BALL_TIME = 0.9;                          // ball speed multiplier (1 = original speed)
 
   // ---------- match settings ----------
-  const DEFAULTS = { ballSize: 100, ballSpeed: 90, beanSize: 100, goal: 7, difficulty: 'normal', powerups: 'on' };   // sizes/speed in %
+  const DEFAULTS = { ballSize: 120, ballSpeed: 90, beanSize: 120, goal: 7, difficulty: 'normal', powerups: 'on' };   // sizes/speed in %
   const GOAL_OPTIONS = [3, 5, 7, 11, 15, 21];
   // speed: share of full bean speed · react: seconds between re-reading the ball
   // err: max px it misjudges the landing spot by · jumpChance: how often it goes up for a hit
   // aim: range of offsets it stands at behind the ball, which changes where its return goes
   // drive: chance it lunges toward the net at contact, which sends back a flatter, faster ball
   const AI_LEVELS = {
-    easy:   { label: 'Easy',   speed: .6,  react: .2,  err: 60, jumpChance: .25, aim: [16, 16] },
-    normal: { label: 'Normal', speed: .9,  react: .07, err: 0,  jumpChance: 1,   aim: [16, 16] },
-    hard:   { label: 'Hard',   speed: 1,   react: .03, err: 0,  jumpChance: 1,   aim: [10, 34], drive: .75 },
+    easy:   { speed: .6,  react: .2,  err: 60, jumpChance: .25, aim: [16, 16] },
+    normal: { speed: .9,  react: .07, err: 0,  jumpChance: 1,   aim: [16, 16] },
+    hard:   { speed: 1,   react: .03, err: 0,  jumpChance: 1,   aim: [10, 34], drive: .75 },
   };
   // Overall CPU skill across all difficulty levels (1 = original strength).
   // Lower values make it move and react a little slower and occasionally misread a ball badly,
   // the way a person sometimes flubs one. 0.9 = about 10% fewer returns at every level.
   const AI_SKILL = 0.9, AI_WHIFF = 0.12;
+  // The upright court is narrower, so the CPU has less ground to cover. There it moves a little
+  // slower and misjudges a little more, so it plays about as well as it does on the wide court.
+  const AI_NARROW_SPEED = 0.9, AI_NARROW_ERR = 1.5;
   const cfg = { ...DEFAULTS };
-  try { Object.assign(cfg, JSON.parse(localStorage.getItem('jbv-settings') || '{}')); } catch (e) {}
+
+  // ---------- platform: YouTube Playables, or a plain web page ----------
+  // Inside YouTube the SDK (loaded before this script) provides cloud saves, pause/resume,
+  // YouTube's mute setting and scores. Everywhere else the game falls back to the browser.
+  const YT = typeof ytgame !== 'undefined' && !!ytgame.IN_PLAYABLES_ENV;
+  if (YT) document.documentElement.classList.add('yt');
+  const ytSafe = fn => { try { const r = fn(); if (r && r.catch) r.catch(() => {}); } catch (e) {} };
+  const stats = { cpuWins: 0, streak: 0, bestStreak: 0 };   // wins against the computer
+  let saveLoaded = !YT;                                       // YouTube: loadData must finish before any saveData
+  function applySaved(d) {
+    if (!d || typeof d !== 'object') return;
+    if (d.settings) for (const k in DEFAULTS) if (k in d.settings) cfg[k] = d.settings[k];
+    if (d.stats) for (const k in stats) if (Number.isFinite(d.stats[k])) stats[k] = d.stats[k];
+  }
+  function readLocal() {
+    try {
+      const d = JSON.parse(localStorage.getItem('jbv-save') || 'null');
+      return d || { settings: JSON.parse(localStorage.getItem('jbv-settings') || '{}') };   // older saves kept settings only
+    } catch (e) { return {}; }
+  }
+  async function loadSave() {
+    if (!YT) return readLocal();
+    try { const s = await ytgame.game.loadData(); return s ? JSON.parse(s) : {}; }
+    catch (e) { ytSafe(() => ytgame.health.logWarning()); return {}; }
+  }
+  let saveTimer = 0;
+  function writeSave() {
+    if (!saveLoaded) return;
+    const data = JSON.stringify({ v: 1, settings: cfg, stats });
+    if (YT) ytSafe(() => ytgame.game.saveData(data));
+    else try { localStorage.setItem('jbv-save', data); } catch (e) {}
+  }
+  function persist() { clearTimeout(saveTimer); saveTimer = setTimeout(writeSave, 300); }   // sliders fire many times
+  function flushSave() { clearTimeout(saveTimer); writeSave(); }
+  if (!YT) applySaved(readLocal());
   function applySettings() {
     BR = BASE_BR * cfg.ballSize / 100;
     BALL_TIME = cfg.ballSpeed / 100;
@@ -242,12 +628,12 @@
   // ---------- power-ups ----------
   // target 'self' helps whoever last touched the ball; 'opponent' is used on the other bean
   const POWERS = {
-    mega:   { name: 'Mega Bean',  color: '#ff8c1a', target: 'self' },       // bean grows 40%
-    turbo:  { name: 'Turbo',      color: '#15b8a6', target: 'self' },       // moves 50% faster
-    spring: { name: 'Super Jump', color: '#6cc12a', target: 'self' },       // jumps higher
-    smash:  { name: 'Power Hit',  color: '#f5b400', target: 'self' },       // hits leave 30% faster
-    syrup:  { name: 'Syrup',      color: '#b86a2c', target: 'self' },       // ball slows down on your side
-    shrink: { name: 'Shrink Ray', color: '#a45cf0', target: 'opponent' },   // opponent shrinks
+    mega:   { color: '#ff8c1a', target: 'self' },       // bean grows 40%
+    turbo:  { color: '#15b8a6', target: 'self' },       // moves 50% faster
+    spring: { color: '#6cc12a', target: 'self' },       // jumps higher
+    smash:  { color: '#f5b400', target: 'self' },       // hits leave 30% faster
+    syrup:  { color: '#b86a2c', target: 'self' },       // ball slows down on your side
+    shrink: { color: '#a45cf0', target: 'opponent' },   // opponent shrinks
   };
   const POWER_TIME = 5, ITEM_R = 24, ITEM_LIFE = 9;
   let item = null, spawnT = 5, lastTouch = -1, announce = null;
@@ -257,8 +643,8 @@
   let scale = 1, bg = null;
 
   const FLAVOURS = [
-    { name: 'Cherry', base: '#e8344e', light: '#ff8a8f', dark: '#9c1330', speck: 'rgba(120,10,30,.35)', cheek: '#ffb3b8' },
-    { name: 'Blueberry', base: '#4d63e6', light: '#9eb0ff', dark: '#26308f', speck: 'rgba(230,236,255,.45)', cheek: '#c8b8ff' },
+    { base: '#e8344e', light: '#ff8a8f', dark: '#9c1330', speck: 'rgba(120,10,30,.35)', cheek: '#ffb3b8' },
+    { base: '#4d63e6', light: '#9eb0ff', dark: '#26308f', speck: 'rgba(230,236,255,.45)', cheek: '#c8b8ff' },
   ];
 
   function makeSpecks(seed) {
@@ -287,37 +673,98 @@
 
   // ---------- input ----------
   const keys = new Set();
-  const touch = { left: false, right: false, jump: false };
   addEventListener('keydown', e => {
     if (e.target.matches?.('input[type=range], input[type=radio]') && /^Arrow/.test(e.code)) return;   // let settings use arrow keys
     if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(e.code)) e.preventDefault();
     if (e.code === 'KeyP' || (e.code === 'Escape' && !fsElement())) { togglePause(); return; }
-    if (e.code === 'KeyF' && !e.repeat && fsSupported) { toggleFullscreen(); return; }
+    if (e.code === 'KeyF' && !e.repeat && fsSupported && !YT) { toggleFullscreen(); return; }
     keys.add(e.code); ensureAudio();
   });
   addEventListener('keyup', e => keys.delete(e.code));
   addEventListener('blur', () => { keys.clear(); if (state === 'play' || state === 'serve') setPaused(true); });
 
-  document.querySelectorAll('.pad').forEach(b => {
-    const k = b.dataset.k;
-    const on = e => { e.preventDefault(); touch[k] = true; b.classList.add('on'); ensureAudio(); };
-    const off = e => { e.preventDefault(); touch[k] = false; b.classList.remove('on'); };
-    b.addEventListener('pointerdown', on);
-    ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => b.addEventListener(ev, off));
+  // ---------- pointer controls (mouse + touch) ----------
+  // The bean runs toward the x position of your finger or mouse. Horizontal positions line up with
+  // the court, so on the upright layout's control strip each bean sits straight above your finger.
+  // Jump: click · tap · a second finger while dragging · a quick upward flick of the dragging finger.
+  const ctrl = [0, 1].map(() => ({ id: null, targetX: null, jumpT: 0, mouse: false,
+    downT: 0, downX: 0, downY: 0, moved: false, anchorY: 0, anchorT: 0, flickLock: false }));
+  const extraFingers = new Set();
+  const padArea = document.getElementById('padArea');
+  const coarse = matchMedia('(pointer: coarse)');
+  let touchUsed = coarse.matches;   // switches on the first time someone touches the screen
+  if (touchUsed) document.documentElement.classList.add('touch-used');
+  function refreshHint() {
+    document.getElementById('padHint').textContent = t(mode === 'pvp' ? 'pad.twoPlayers' : touchUsed ? 'pad.touch' : 'pad.mouse');
+  }
+  function courtX(e) { const r = canvas.getBoundingClientRect(); return (e.clientX - r.left) / r.width * W; }
+  function controlsLive() { return !paused && (state === 'play' || state === 'serve' || state === 'point'); }
+  function sideFor(x) { return mode === 'pvp' ? (x < W / 2 ? 0 : 1) : 0; }
+  function pulseJump(c) { c.jumpT = 0.15; ensureAudio(); }   // held briefly so a tap just before landing still jumps
+  function clearControls() { ctrl.forEach(c => { c.id = null; c.targetX = null; c.jumpT = 0; c.mouse = false; }); extraFingers.clear(); }
+  function onPointerDown(e) {
+    if (!controlsLive()) return;
+    if (e.pointerType === 'touch' && !touchUsed) { touchUsed = true; document.documentElement.classList.add('touch-used'); refreshHint(); }
+    const x = courtX(e), c = ctrl[sideFor(x)];
+    if (e.pointerType === 'mouse') { if (e.button === 0) { c.mouse = true; c.targetX = x; pulseJump(c); } return; }
+    e.preventDefault();
+    const now = performance.now();
+    if (c.id === null) Object.assign(c, { id: e.pointerId, targetX: x, downT: now, downX: e.clientX, downY: e.clientY,
+      moved: false, anchorY: e.clientY, anchorT: now, flickLock: false });
+    else { extraFingers.add(e.pointerId); pulseJump(c); }                    // second finger = jump
+  }
+  function onPointerMove(e) {
+    if (e.pointerType === 'mouse') {
+      if (!controlsLive() || !e.target.closest?.('#game, #padArea')) return;
+      const side = sideFor(courtX(e)), c = ctrl[side], o = ctrl[1 - side];
+      c.mouse = true; c.targetX = courtX(e);
+      if (o.mouse) { o.mouse = false; o.targetX = null; }
+      return;
+    }
+    const c = ctrl.find(k => k.id === e.pointerId); if (!c) return;
+    const now = performance.now();
+    c.targetX = courtX(e);
+    if (Math.hypot(e.clientX - c.downX, e.clientY - c.downY) > 12) c.moved = true;
+    // flick detection: a fast upward move of 26px+ (within 220 ms of the finger last being still or moving down)
+    if (e.clientY >= c.anchorY) { if (e.clientY - c.anchorY > 6) c.flickLock = false; c.anchorY = e.clientY; c.anchorT = now; }
+    else if (now - c.anchorT > 220) { c.anchorY = e.clientY; c.anchorT = now; }
+    else if (!c.flickLock && c.anchorY - e.clientY > 26) { pulseJump(c); c.flickLock = true; }
+  }
+  function onPointerUp(e) {
+    if (extraFingers.delete(e.pointerId) || e.pointerType === 'mouse') return;
+    const c = ctrl.find(k => k.id === e.pointerId); if (!c) return;
+    if (e.type === 'pointerup' && !c.moved && performance.now() - c.downT < 220) pulseJump(c);   // quick tap
+    c.id = null; c.targetX = null;
+  }
+  addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch' && !touchUsed) { touchUsed = true; document.documentElement.classList.add('touch-used'); refreshHint(); }
+  }, true);
+  [canvas, padArea].forEach(el => {
+    el.addEventListener('pointerdown', onPointerDown);
+    el.addEventListener('contextmenu', e => e.preventDefault());
+    el.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') ctrl.forEach(c => { if (c.mouse) { c.mouse = false; c.targetX = null; } }); });
   });
+  addEventListener('pointermove', onPointerMove);
+  addEventListener('pointerup', onPointerUp);
+  addEventListener('pointercancel', onPointerUp);
 
   function inputFor(p) {
+    let kdir, kjump;
     if (p.side === 0) {
       const solo = mode === 'cpu';
-      const L = keys.has('KeyA') || (solo && keys.has('ArrowLeft')) || touch.left;
-      const R = keys.has('KeyD') || (solo && keys.has('ArrowRight')) || touch.right;
-      const J = keys.has('KeyW') || (solo && (keys.has('ArrowUp') || keys.has('Space'))) || touch.jump;
-      return { dir: (R ? 1 : 0) - (L ? 1 : 0), jump: J };
-    }
-    if (mode === 'pvp') {
-      return { dir: (keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0), jump: keys.has('ArrowUp') };
-    }
-    return aiInput(p);
+      const L = keys.has('KeyA') || (solo && keys.has('ArrowLeft'));
+      const R = keys.has('KeyD') || (solo && keys.has('ArrowRight'));
+      kjump = keys.has('KeyW') || (solo && (keys.has('ArrowUp') || keys.has('Space')));
+      kdir = (R ? 1 : 0) - (L ? 1 : 0);
+    } else if (mode === 'pvp') {
+      kdir = (keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0); kjump = keys.has('ArrowUp');
+    } else return aiInput(p);
+    // keyboard wins over a resting mouse; otherwise steer toward the finger/mouse position
+    const c = ctrl[p.side];
+    if (kdir && c.mouse) { c.mouse = false; c.targetX = null; }
+    let dir = kdir;
+    if (!dir && c.targetX !== null) { const d = c.targetX - p.x; dir = Math.abs(d) < 3 ? 0 : Math.max(-1, Math.min(1, d / 22)); }
+    return { dir, jump: kjump || c.jumpT > 0 };
   }
 
   // ---------- CPU ----------
@@ -340,7 +787,7 @@
     // each time the ball comes to its side, the CPU decides how well it reads it this time
     const onMySide = ball.x > W / 2;
     if (onMySide && !p.aiSide) {
-      p.aiErr = (Math.random() * 2 - 1) * L.err;
+      p.aiErr = (Math.random() * 2 - 1) * L.err * (W < 960 ? AI_NARROW_ERR : 1);
       if (Math.random() < AI_WHIFF) p.aiErr += (Math.random() < .5 ? -1 : 1) * (90 + Math.random() * 40);   // misread
       p.aiJump = Math.random() < L.jumpChance;
       p.aiAim = L.aim[0] + Math.random() * (L.aim[1] - L.aim[0]);
@@ -351,11 +798,11 @@
     if (p.aiT <= 0) {
       p.aiT = L.react / AI_SKILL;
       const px = predictX(GY - 100 * BS - BR);
-      p.aiTarget = (px > W / 2 - 4) ? px + p.aiAim * BS + p.aiErr : 740;
+      p.aiTarget = (px > W / 2 - 4) ? px + p.aiAim * BS + p.aiErr : W * .77;
       if (state === 'serve') p.aiTarget = ball.x + p.aiAim * BS;
     }
     const d = p.aiTarget - p.x;
-    let dir = Math.abs(d) < 6 ? 0 : Math.sign(d) * L.speed * AI_SKILL;
+    let dir = Math.abs(d) < 6 ? 0 : Math.sign(d) * L.speed * AI_SKILL * (W < 960 ? AI_NARROW_SPEED : 1);
     const dx = ball.x - p.x;
     if (p.aiDrive && state === 'play' && onMySide && ball.vy > 0 && dx < 0 &&
         Math.hypot(dx, ball.y - (p.y - 50 * BS)) < PR + BR + 45) dir = -1;   // lunge into the ball
@@ -366,11 +813,12 @@
 
   // ---------- audio ----------
   let actx = null, muted = false;
+  let hostAudio = YT ? (() => { try { return ytgame.system.isAudioEnabled(); } catch (e) { return true; } })() : true;
   function ensureAudio() {
     try { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (e) {}
   }
   function tone(f1, f2, dur, type = 'sine', vol = .14, delay = 0) {
-    if (!actx || muted) return;
+    if (!actx || muted || !hostAudio) return;
     const t = actx.currentTime + delay, o = actx.createOscillator(), g = actx.createGain();
     o.type = type; o.frequency.setValueAtTime(f1, t); o.frequency.exponentialRampToValueAtTime(f2, t + dur);
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
@@ -390,16 +838,21 @@
   // ---------- game flow ----------
   function startMatch(m) {
     mode = m; score[0] = score[1] = 0; server = 0; lastScorer = -1;
-    document.getElementById('p1label').textContent = m === 'cpu' ? 'You' : 'Player 1';
-    document.getElementById('p2label').textContent = m === 'cpu' ? 'CPU' : 'Player 2';
+    setPlayerLabels();
     clearPowers(); spawnT = 4 + Math.random() * 3;
     updateBoard(); hideOverlay(); ensureAudio(); resetServe();
+    document.getElementById('rail').classList.toggle('cpu', m === 'cpu');
+    refreshHint();
+  }
+  function setPlayerLabels() {
+    document.getElementById('p1label').textContent = t(mode === 'cpu' ? 'label.you' : 'label.p1');
+    document.getElementById('p2label').textContent = t(mode === 'cpu' ? 'label.cpu' : 'label.p2');
   }
   function clearPowers() { item = null; announce = null; players.forEach(p => { p.fx = {}; }); }
   function resetServe() {
-    players[0].x = 200; players[1].x = 760;
+    players[0].x = W * .21; players[1].x = W * .79;
     players.forEach(p => { p.y = GY; p.vx = p.vy = 0; p.onGround = true; });
-    ball.x = server ? 760 : 200; ball.y = SERVE_Y; ball.vx = 0; ball.vy = 0;
+    ball.x = server ? W * .79 : W * .21; ball.y = SERVE_Y; ball.vx = 0; ball.vy = 0;
     players[1].aiSide = false; lastTouch = -1; ball.power = false; ball.trail.length = 0;
     state = 'serve'; timer = 0.7;
   }
@@ -424,7 +877,7 @@
       const b = document.createElement('button'); b.type = 'button';
       b.className = 'btn' + (alt ? ' alt' : ''); b.textContent = label; b.onclick = fn; row.appendChild(b);
     });
-    overlay.hidden = false; document.getElementById('arena').classList.add('menu-open');
+    overlay.hidden = false; document.getElementById('arena').classList.add('menu-open'); clearControls();
     const first = row.querySelector('button'); if (first) first.focus({ preventScroll: true });
   }
   function hideOverlay() { overlay.hidden = true; document.getElementById('arena').classList.remove('menu-open'); canvas.focus?.(); }
@@ -434,17 +887,21 @@
   function setPaused(v) {
     if (state === 'menu' || state === 'over') return;
     paused = v;
-    document.getElementById('pauseBtn').textContent = document.getElementById('fsPause').textContent = paused ? 'Resume' : 'Pause';
-    if (paused) showOverlay('Paused', `Cherry ${score[0]} – ${score[1]} Blueberry`, [['Resume', () => setPaused(false)], ['Quit to menu', toMenu, true]]);
+    syncPauseButtons();
+    if (paused) showOverlay(t('pause.title'), t('pause.score', { p1: fname(0), s1: score[0], s2: score[1], p2: fname(1) }),
+      [[t('btn.resume'), () => setPaused(false)], [t('pause.quit'), toMenu, true]]);
     else hideOverlay();
+  }
+  function syncPauseButtons() {
+    document.getElementById('pauseBtn').textContent = document.getElementById('fsPause').textContent = t(paused ? 'btn.resume' : 'btn.pause');
   }
   function togglePause() { setPaused(!paused); }
   function toMenu() {
     paused = false; state = 'menu'; score[0] = score[1] = 0; updateBoard(); clearPowers();
-    document.getElementById('pauseBtn').textContent = document.getElementById('fsPause').textContent = 'Pause';
+    syncPauseButtons();
     resetServe(); state = 'menu';
-    showOverlay('Bounce it over the net', "Score a point when the ball lands on your opponent's sand.",
-      [['1 player vs CPU', () => startMatch('cpu')], ['2 players', () => startMatch('pvp'), true]], true);
+    showOverlay(t('menu.title'), t('menu.text'),
+      [[t('menu.onePlayer'), () => startMatch('cpu')], [t('menu.twoPlayers'), () => startMatch('pvp'), true]], true);
   }
   const SLIDERS = [['ballSize', 'cfgBallSize', 'outBallSize'], ['ballSpeed', 'cfgBallSpeed', 'outBallSpeed'], ['beanSize', 'cfgBeanSize', 'outBeanSize']];
   function syncSliders() {
@@ -469,19 +926,19 @@
         cfg[key] = typeof DEFAULTS[key] === 'number' ? +value : value;
         applySettings(); saveSettings();
       });
-      const lab = document.createElement('label'); lab.htmlFor = id; lab.textContent = label;
+      const lab = document.createElement('label'); lab.htmlFor = id; lab.dataset.i18n = label; lab.textContent = t(label);
       box.append(input, lab);
     });
   }
   buildSeg('segGoal', 'goal', GOAL_OPTIONS.map(n => [n, String(n)]), 'goal');
-  buildSeg('segPow', 'powerups', [['on', 'On'], ['off', 'Off']], 'powerups');
-  buildSeg('segDiff', 'difficulty', Object.entries(AI_LEVELS).map(([k, v]) => [k, v.label]), 'difficulty');
+  buildSeg('segPow', 'powerups', [['on', 'common.on'], ['off', 'common.off']], 'powerups');
+  buildSeg('segDiff', 'difficulty', Object.keys(AI_LEVELS).map(k => [k, 'diff.' + k]), 'difficulty');
   function syncSegs() {
     document.getElementById(`goal-${cfg.goal}`).checked = true;
     document.getElementById(`difficulty-${cfg.difficulty}`).checked = true;
     document.getElementById(`powerups-${cfg.powerups}`).checked = true;
   }
-  function saveSettings() { try { localStorage.setItem('jbv-settings', JSON.stringify(cfg)); } catch (e) {} }
+  function saveSettings() { persist(); }
   document.getElementById('resetCfg').onclick = () => { Object.assign(cfg, DEFAULTS); applySettings(); saveSettings(); syncSliders(); syncSegs(); };
   syncSliders(); syncSegs();
 
@@ -495,33 +952,91 @@
       if (fsElement()) await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
       else {
         await (arena.requestFullscreen || arena.webkitRequestFullscreen).call(arena, { navigationUI: 'hide' });
-        try { await screen.orientation?.lock?.('landscape'); } catch (e) {}   // phones: turn sideways if allowed
       }
     } catch (e) {
-      fsBtn.textContent = 'Full screen unavailable'; setTimeout(syncFsButton, 2000);
+      fsBtn.textContent = t('btn.fsUnavailable'); setTimeout(syncFsButton, 2000);
     }
   }
-  function fitCanvas() {
-    // in full screen, make the court as large as possible while keeping its shape
-    if (!arena.classList.contains('is-fs')) { canvas.style.width = ''; return; }
-    const stage = canvas.parentElement;
-    const w = Math.min(stage.clientWidth, stage.clientHeight * W / H);
-    canvas.style.width = Math.floor(w) + 'px';
+  const STRIP_H = 170, GAP = 10;          // upright layout: room kept for the control strip below the court
+  function courtRoomUpright() {
+    // height the court may use on an upright screen: the arena minus scoreboard, strip and gaps
+    const board = arena.querySelector('.board');
+    return Math.max(120, arena.clientHeight - board.offsetHeight - STRIP_H - GAP * 2);
   }
-  function syncFsButton() { fsBtn.textContent = fsElement() ? 'Exit full screen' : 'Full screen'; }
+  function fitCanvas() {
+    // make the court as large as the space allows while keeping its shape, centred in that space
+    const stage = canvas.parentElement;
+    const room = isPortrait() ? courtRoomUpright() : stage.clientHeight;
+    const w = Math.max(160, Math.floor(Math.min(stage.clientWidth, room * W / H)));
+    if (canvas.style.width !== w + 'px') canvas.style.width = w + 'px';
+    arena.style.setProperty('--court-w', w + 'px');   // the floating scoreboard never gets wider than the court
+    const rail = document.getElementById('rail');       // keep the strip's rail exactly under the court
+    rail.style.width = w + 'px'; rail.style.marginInline = 'auto';
+  }
+  function syncFsButton() {
+    fsBtn.textContent = t(fsElement() ? 'btn.exitFullscreen' : 'btn.fullscreen');
+    document.getElementById('fsExit').textContent = t(fsElement() ? 'btn.exit' : 'btn.fullscreen');
+  }
   function onFsChange() {
     arena.classList.toggle('is-fs', fsElement() === arena);
     syncFsButton(); fitCanvas();
   }
   document.addEventListener('fullscreenchange', onFsChange);
   document.addEventListener('webkitfullscreenchange', onFsChange);
-  addEventListener('resize', fitCanvas);
+  // upright screens (taller than wide) get the court on top and a control strip below
+  function isPortrait() { return innerHeight > innerWidth * 1.1; }
+
+  // Change the court's size. Everything on court keeps its place relative to the net and the ground.
+  function setWorld(w, h) {
+    w = Math.round(w); h = Math.round(h);
+    if (w === W && h === H) return;
+    const oW = W, oGY = GY, sx = w / oW;
+    W = w; H = h; GY = H - 70; NL = W / 2 - 6; NR = W / 2 + 6; NT = GY - 152; SERVE_Y = GY - 320;
+    const dy = GY - oGY;
+    players.forEach(p => { p.x *= sx; p.y += dy; p.aiTarget *= sx; });
+    ball.x *= sx; ball.y += dy; ball.trail.length = 0;
+    if (item) { item.x *= sx; item.y += dy; }
+    particles.length = 0; clearControls();
+    canvas.style.aspectRatio = `${W} / ${H}`;
+    resize();
+  }
+  const PORTRAIT_W = 720;          // narrower court on upright screens → beans draw about 33% bigger
+  function portraitHeight() {
+    // make the court as tall as the space allows while leaving room for the control strip below it
+    const cw = canvas.parentElement.clientWidth || innerWidth;
+    return Math.max(700, Math.min(1400, PORTRAIT_W * courtRoomUpright() / cw));
+  }
+  let lastPortrait = null;
+  function updateLayout() {
+    const portrait = isPortrait();
+    document.documentElement.classList.toggle('portrait', portrait);
+    // During a rally only resize when the screen actually turns, so a phone's address bar
+    // sliding in and out doesn't change the court mid-point.
+    const busy = state === 'play' || state === 'serve' || state === 'point';
+    if (!busy || portrait !== lastPortrait) {
+      if (portrait) setWorld(PORTRAIT_W, portraitHeight()); else setWorld(960, 648);
+    }
+    lastPortrait = portrait;
+    fitCanvas();
+  }
+  addEventListener('resize', updateLayout);
+  new ResizeObserver(() => fitCanvas()).observe(arena);   // scoreboard or hint row changing size
+  updateLayout();
   fsBtn.onclick = toggleFullscreen;
   document.getElementById('fsExit').onclick = toggleFullscreen;
+  if (!fsSupported) document.getElementById('fsExit').hidden = true;
   document.getElementById('fsPause').onclick = () => togglePause();
 
   document.getElementById('pauseBtn').onclick = togglePause;
-  document.getElementById('muteBtn').onclick = e => { muted = !muted; e.currentTarget.textContent = muted ? 'Sound off' : 'Sound on'; ensureAudio(); };
+  function toggleMute() {
+    muted = !muted; ensureAudio();
+    syncMuteButtons();
+  }
+  function syncMuteButtons() {
+    ['muteBtn', 'fsMute'].forEach(id => { document.getElementById(id).textContent = t(muted ? 'btn.soundOff' : 'btn.soundOn'); });
+  }
+  document.getElementById('muteBtn').onclick = toggleMute;
+  document.getElementById('fsMute').onclick = toggleMute;
   document.addEventListener('visibilitychange', () => { if (document.hidden && (state === 'play' || state === 'serve')) setPaused(true); });
 
   // ---------- physics ----------
@@ -543,7 +1058,7 @@
     const minX = p.side ? NR + m : m, maxX = p.side ? W - m : NL - m;
     p.x = Math.max(minX, Math.min(maxX, p.x));
     if (inp.jump && p.onGround && state !== 'menu' && state !== 'over') {
-      p.vy = -JUMP * (p.fx.spring ? 1.22 : 1); p.onGround = false; p.sv += 7; sfx.jump();
+      p.vy = -JUMP * (p.fx.spring ? 1.22 : 1); p.onGround = false; ctrl[p.side].jumpT = 0; p.sv += 7; sfx.jump();
     }
     if (!p.onGround) {
       p.vy += G_P * dt; p.y += p.vy * dt;
@@ -633,13 +1148,13 @@
     const keys = Object.keys(POWERS), type = keys[Math.floor(Math.random() * keys.length)];
     const right = Math.random() < .5;
     const x = right ? NR + 70 + Math.random() * (W - NR - 140) : 70 + Math.random() * (NL - 140);
-    const y = 110 + Math.random() * (GY - 370);          // above head height: you have to hit the ball up through it
+    const y = GY - 260 - Math.random() * 208;           // above head height: you have to hit the ball up through it
     item = { type, x, y, age: 0 }; sfx.spawn();
   }
   function grantPower(side, type) {
     const P = POWERS[type], who = P.target === 'opponent' ? players[1 - side] : players[side];
     who.fx[type] = POWER_TIME;
-    announce = { text: `${FLAVOURS[side].name}: ${P.name}!`, color: P.color, t: 1.8 };
+    announce = { text: t('court.gotPower', { name: fname(side), power: t('power.' + type) }), color: P.color, t: 1.8 };
     for (let i = 0; i < 22; i++) {
       const a = Math.random() * Math.PI * 2, v = 120 + Math.random() * 220;
       particles.push({ x: item.x, y: item.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, life: .6 + Math.random() * .3, t: 0, r: 2.5 + Math.random() * 3, col: P.color });
@@ -648,6 +1163,7 @@
   }
 
   function update(dt) {
+    ctrl.forEach(c => { if (c.jumpT > 0) c.jumpT -= dt; });
     players.forEach(p => updatePlayer(p, dt));
     if (announce && (announce.t -= dt) <= 0) announce = null;
     if (state === 'play' || state === 'serve') {
@@ -691,9 +1207,21 @@
         if (score[0] >= cfg.goal || score[1] >= cfg.goal) {
           state = 'over';
           const w = score[0] > score[1] ? 0 : 1;
-          const title = mode === 'cpu' ? (w === 0 ? 'Cherry wins!' : 'Blueberry wins this one') : `${FLAVOURS[w].name} wins!`;
-          showOverlay(title, `Final score ${score[0]} – ${score[1]}`,
-            [['Play again', () => startMatch(mode)], ['Change settings', toMenu, true]]);
+          const title = t(mode === 'cpu' && w === 1 ? 'over.cpuWins' : 'over.wins', { name: fname(w) });
+          let line = t('over.final', { s1: score[0], s2: score[1] });
+          if (mode === 'cpu') {
+            if (w === 0) {
+              stats.cpuWins++; stats.streak++;
+              if (stats.streak > stats.bestStreak) {
+                stats.bestStreak = stats.streak;
+                if (YT) ytSafe(() => ytgame.engagement.sendScore({ value: stats.bestStreak }));   // best win streak vs CPU
+              }
+            } else stats.streak = 0;
+            flushSave();
+            line += ' · ' + t('over.streak', { streak: stats.streak, best: stats.bestStreak });
+          }
+          showOverlay(title, line,
+            [[t('over.playAgain'), () => startMatch(mode)], [t('over.settings'), toMenu, true]]);
         } else resetServe();
       }
     }
@@ -721,7 +1249,8 @@
     b.fillStyle = '#fff6d2'; b.beginPath(); b.arc(150, 170, 42, 0, Math.PI * 2); b.fill();
     // soft clouds
     b.fillStyle = 'rgba(255,255,255,.75)';
-    [[640, 140, 1], [820, 210, .7], [380, 90, .6]].forEach(([x, y, s]) => {
+    const cs = W / 960;
+    [[640 * cs, 140, 1], [820 * cs, 210, .7], [380 * cs, 90, .6]].forEach(([x, y, s]) => {
       b.beginPath(); b.ellipse(x, y, 60 * s, 18 * s, 0, 0, Math.PI * 2);
       b.ellipse(x + 30 * s, y - 12 * s, 38 * s, 20 * s, 0, 0, Math.PI * 2);
       b.ellipse(x - 34 * s, y - 6 * s, 30 * s, 15 * s, 0, 0, Math.PI * 2); b.fill();
@@ -882,9 +1411,9 @@
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, ITEM_R, 0, Math.PI * 2); ctx.fill();
     ctx.lineWidth = 2.5; ctx.strokeStyle = P.color; ctx.stroke();
     drawPowerIcon(item.type, P.color);
-    ctx.font = '800 12px Nunito, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.font = `800 12px ${BODY_STACK}`; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(42,19,48,.85)'; ctx.lineJoin = 'round';
-    const label = P.name.toUpperCase();
+    const label = t('power.' + item.type).toLocaleUpperCase(LANG);
     ctx.strokeText(label, 0, ITEM_R + 6); ctx.fillStyle = '#fff'; ctx.fillText(label, 0, ITEM_R + 6);
     ctx.restore();
   }
@@ -908,10 +1437,10 @@
 
   function banner(text, color) {
     ctx.save();
-    ctx.font = '400 40px Chango, "Arial Black", Impact, sans-serif';
+    fitFont(DISPLAY_FONT, 40, text, W - 40);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round'; ctx.lineWidth = 8; ctx.strokeStyle = '#2a1330';
-    ctx.strokeText(text, W / 2, 300); ctx.fillStyle = color; ctx.fillText(text, W / 2, 300);
+    ctx.strokeText(text, W / 2, GY - 278); ctx.fillStyle = color; ctx.fillText(text, W / 2, GY - 278);
     ctx.restore();
   }
 
@@ -937,17 +1466,38 @@
     ctx.globalAlpha = 1;
     drawBall();
     players.forEach(drawBadges);
+    // small marker on the sand where a mouse/finger is steering a bean to
+    if (state !== 'menu' && state !== 'over') ctrl.forEach((c, side) => {
+      if (c.targetX === null || (side === 1 && mode !== 'pvp')) return;
+      const m = 40 * players[side].sz, x = Math.max(side ? NR + m : m, Math.min(side ? W - m : NL - m, c.targetX));
+      ctx.save(); ctx.globalAlpha = .55; ctx.fillStyle = FLAVOURS[side].base;
+      ctx.beginPath(); ctx.moveTo(x - 8, GY + 20); ctx.lineTo(x + 8, GY + 20); ctx.lineTo(x, GY + 10); ctx.closePath(); ctx.fill(); ctx.restore();
+    });
+    if (state === 'serve' && touchUsed && !isPortrait()) {
+      ctx.save(); ctx.textAlign = 'center';
+      ctx.lineWidth = 4; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(255,241,224,.8)'; ctx.fillStyle = '#2a1330';
+      const hint = t(mode === 'pvp' ? 'court.touchHint2p' : 'court.touchHint');
+      fitFont(px => `800 ${px}px ${BODY_STACK}`, 17, hint, W - 30);
+      ctx.strokeText(hint, W / 2, GY + 44); ctx.fillText(hint, W / 2, GY + 44); ctx.restore();
+    }
+    if (isPortrait()) players.forEach((p, i) => {
+      const k = document.getElementById('knob' + i);
+      k.style.left = (p.x / W * 100).toFixed(2) + '%';
+      k.classList.toggle('idle', i === 1 && mode !== 'pvp');
+      k.classList.toggle('active', ctrl[i].targetX !== null && (i === 0 || mode === 'pvp'));
+    });
     if (announce) {
       ctx.save(); ctx.globalAlpha = Math.min(1, announce.t / .4);
-      ctx.font = '400 28px Chango, "Arial Black", Impact, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      fitFont(DISPLAY_FONT, 28, announce.text, W - 40); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.lineJoin = 'round'; ctx.lineWidth = 7; ctx.strokeStyle = '#2a1330';
-      ctx.strokeText(announce.text, W / 2, 64); ctx.fillStyle = announce.color; ctx.fillText(announce.text, W / 2, 64);
+      // drawn below the top of the sky, so the floating scoreboard on short screens never covers it
+      ctx.strokeText(announce.text, W / 2, 112); ctx.fillStyle = announce.color; ctx.fillText(announce.text, W / 2, 112);
       ctx.restore();
     }
-    if (state === 'point' && lastScorer >= 0) banner(`Point ${FLAVOURS[lastScorer].name}!`, lastScorer ? '#9eb0ff' : '#ff8a8f');
+    if (state === 'point' && lastScorer >= 0) banner(t('court.point', { name: fname(lastScorer) }), lastScorer ? '#9eb0ff' : '#ff8a8f');
     if (state === 'serve') {
-      ctx.save(); ctx.font = '800 16px Nunito, system-ui, sans-serif'; ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(42,19,48,.75)'; ctx.fillText(`${FLAVOURS[server].name} serves`, ball.x, SERVE_Y - 32); ctx.restore();
+      ctx.save(); fitFont(px => `800 ${px}px ${BODY_STACK}`, 16, t('court.serves', { name: fname(server) }), W * .45); ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(42,19,48,.75)'; ctx.fillText(t('court.serves', { name: fname(server) }), ball.x, SERVE_Y - 32); ctx.restore();
     }
   }
 
@@ -962,18 +1512,64 @@
   resize();
 
   // ---------- loop ----------
-  let last = performance.now(), acc = 0;
+  let last = performance.now(), acc = 0, hostPaused = false, firstFrameDone;
+  const firstFrame = new Promise(r => { firstFrameDone = r; });
   function frame(now) {
+    if (hostPaused) return;                      // YouTube paused us: stop all work until onResume
     let dt = Math.min(.05, (now - last) / 1000); last = now;
     if (!paused) {
       acc += dt;
       while (acc >= STEP) { update(STEP); acc -= STEP; }
     }
     render();
+    firstFrameDone();
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  document.fonts?.ready.then(() => render());
+
+  if (YT) {
+    ytgame.system.onPause(() => {
+      hostPaused = true;
+      if (state !== 'menu' && state !== 'over' && !paused) setPaused(true);   // come back to the Pause menu
+      keys.clear(); clearControls(); flushSave();
+      ytSafe(() => actx && actx.suspend());
+    });
+    ytgame.system.onResume(() => {
+      if (!hostPaused) return;
+      hostPaused = false; last = performance.now();
+      if (hostAudio) ytSafe(() => actx && actx.resume());
+      requestAnimationFrame(frame);
+    });
+    ytgame.system.onAudioEnabledChange(on => { hostAudio = on; });
+    addEventListener('error', () => ytSafe(() => ytgame.health.logError()));
+    addEventListener('unhandledrejection', () => ytSafe(() => ytgame.health.logError()));
+  }
+
+  // Boot: show a "Loading…" card, tell YouTube the first frame is up, load the save, then say we're ready.
+  function setLanguage(tag) {
+    LANG = pickLanguage(tag);
+    applyPageText(); syncPauseButtons(); syncMuteButtons(); syncFsButton(); setPlayerLabels(); refreshHint();
+  }
+  // Language: inside YouTube it must come from getLanguage(); elsewhere the browser's language is used.
+  async function detectLanguage() {
+    if (YT) { try { return await ytgame.system.getLanguage(); } catch (e) { return 'en'; } }
+    return (navigator.languages && navigator.languages[0]) || navigator.language || 'en';
+  }
+  (async () => {
+    const card = document.getElementById('card');
+    if (!YT) setLanguage(await detectLanguage()); else setLanguage('en');
+    if (YT) card.classList.add('loading');
+    await firstFrame;
+    if (YT) ytSafe(() => ytgame.game.firstFrameReady());
+    const [saved, lang] = await Promise.all([loadSave(), YT ? detectLanguage() : null, document.fonts ? document.fonts.ready : null]);
+    if (YT) setLanguage(lang);
+    if (YT) applySaved(saved);
+    saveLoaded = true;
+    applySettings(); syncSliders(); syncSegs();
+    card.classList.remove('loading');
+    render();
+    if (YT) ytSafe(() => ytgame.game.gameReady());
+  })();
 })();
 </script>
 </body>
